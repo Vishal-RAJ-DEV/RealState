@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id             String     @id @default(cuid())
+  name           String?
+  email          String     @unique
+  emailVerified  DateTime?
+  password       String?
+  phone          String?
+  role           Role       @default(BUYER)
+  image          String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  accounts       Account[]
+  leads          Lead[]
+  properties     Property[]
+  sessions       Session[]
+}
+
+model Property {
+  id          String       @id @default(cuid())
+  title       String
+  description String
+  price       Int
+  type        PropertyType
+  listingFor  ListingFor
+  bhk         Int?
+  area        Int?
+  city        String
+  locality    String
+  address     String?
+  images      String[]
+  furnished   Furnished?
+  floor       Int?
+  totalFloors Int?
+  facing      String?
+  age         Int?
+  status      Status       @default(ACTIVE)
+  views       Int          @default(0)
+  sellerId    String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  leads       Lead[]
+  seller      User         @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+}
+
+model Lead {
+  id         String   @id @default(cuid())
+  propertyId String
+  buyerId    String?
+  name       String
+  phone      String
+  email      String
+  message    String?
+  createdAt  DateTime @default(now())
+  buyer      User?    @relation(fields: [buyerId], references: [id])
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+enum Role {
+  BUYER
+  SELLER
+  ADMIN
+}
+
+enum PropertyType {
+  FLAT
+  VILLA
+  PLOT
+  COMMERCIAL
+}
+
+enum ListingFor {
+  SALE
+  RENT
+}
+
+enum Furnished {
+  UNFURNISHED
+  SEMI
+  FULLY
+}
+
+enum Status {
+  ACTIVE
+  SOLD
+  RENTED
+}
