@@ -1,193 +1,195 @@
-import { Building2, Heart, Menu } from "lucide-react";
-import Link from "next/link";
+'use client';
 
-import { UserAvatarMenu } from "@/components/layout/UserAvatarMenu";
-import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { auth, signOut } from "@/lib/auth";
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, Plus, Menu, X, Home, Heart, User } from 'lucide-react';
+import { signOut } from 'next-auth/react';
+import { useApp } from '@/store/PropertyContext';
 
-const navLinks = [
-  { href: "/search?for=SALE", label: "Buy" },
-  { href: "/search?for=RENT", label: "Rent" },
-  { href: "/about", label: "About" },
-];
+export default function Navbar() {
+  const [scrolled, setScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { state, logout } = useApp();
+  const pathname = usePathname();
+  const isHome = pathname === '/';
 
-export async function Navbar() {
-  const session = await auth();
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 50);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
-  async function handleSignOut() {
-    "use server";
-
-    await signOut({ redirectTo: "/" });
+  if (pathname === '/login' || pathname === '/signup') {
+    return null;
   }
 
+  const navBg = scrolled
+    ? 'bg-surface-glass/95 backdrop-blur-md shadow-subtle'
+    : isHome
+      ? 'bg-transparent'
+      : 'bg-cream/95 backdrop-blur-md';
+
+  const textColor = !scrolled && isHome ? 'text-cream' : 'text-charcoal';
+
+  const navLinks = [
+    { label: 'Buy', to: '/search?type=Buy' },
+    { label: 'Rent', to: '/search?type=Rent' },
+    { label: 'Sell', to: '/post' },
+    { label: 'About', to: '/about' },
+  ];
+
   return (
-    <header className="sticky top-0 z-50 border-b bg-white">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
-        <div className="flex items-center gap-6">
-          <Link href="/" className="flex flex-col">
-            <span className="text-xl font-bold tracking-tight">
-              <span className="text-black">Prop</span>
-              <span className="text-primary">Finder</span>
-            </span>
-            <span className="hidden text-xs text-muted-foreground md:block">
-              India&apos;s trusted property marketplace
-            </span>
-          </Link>
+    <>
+      <nav
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${navBg}`}
+      >
+        <div className="w-full px-4 sm:px-6 lg:px-10">
+          <div className="flex items-center justify-between h-16 lg:h-20">
+            <Link href="/" className={`font-serif text-xl lg:text-2xl font-semibold ${textColor} tracking-tight`}>
+              PropFinder
+            </Link>
 
-          <nav className="hidden items-center md:flex">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:text-primary"
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-        </div>
-
-        <div className="hidden items-center gap-3 md:flex">
-          {!session && (
-            <>
-              <Button asChild variant="ghost">
-                <Link href="/login">Login</Link>
-              </Button>
-              <Button asChild>
-                <Link href="/post">
-                  <Building2 className="mr-2 h-4 w-4" />
-                  Post Property
+            <div className="hidden lg:flex items-center gap-8">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.label}
+                  href={link.to}
+                  className={`text-sm font-medium ${textColor} hover:opacity-70 transition-opacity`}
+                >
+                  {link.label}
                 </Link>
-              </Button>
-            </>
-          )}
+              ))}
+            </div>
 
-          {session?.user.role === "SELLER" && (
-            <>
-              <Button asChild variant="ghost">
-                <Link href="/dashboard">Dashboard</Link>
-              </Button>
-              <Button asChild>
-                <Link href="/post">
-                  <Building2 className="mr-2 h-4 w-4" />
-                  Post Property
-                </Link>
-              </Button>
-              <UserAvatarMenu
-                name={session.user.name}
-                email={session.user.email}
-                image={session.user.image}
-              />
-            </>
-          )}
-
-          {session?.user.role === "BUYER" && (
-            <>
-              <Button asChild variant="ghost">
-                <Link href="#">
-                  <Heart className="mr-2 h-4 w-4" />
-                  Saved
-                </Link>
-              </Button>
-              <UserAvatarMenu
-                name={session.user.name}
-                email={session.user.email}
-                image={session.user.image}
-              />
-            </>
-          )}
-        </div>
-
-        <div className="md:hidden">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Open navigation">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-[300px]">
-              <SheetHeader>
-                <SheetTitle className="text-left text-xl font-bold">
-                  <span className="text-black">Prop</span>
-                  <span className="text-primary">Finder</span>
-                </SheetTitle>
-              </SheetHeader>
-
-              <div className="mt-8 flex flex-col gap-2">
-                {navLinks.map((link) => (
+            <div className="hidden lg:flex items-center gap-4">
+              {state.isAuthenticated ? (
+                <>
                   <Link
-                    key={link.href}
-                    href={link.href}
-                    className="rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                    href="/dashboard"
+                    className={`text-sm font-medium ${textColor} hover:opacity-70 transition-opacity`}
                   >
-                    {link.label}
+                    Dashboard
                   </Link>
-                ))}
-              </div>
+                  <button
+                    onClick={() => { logout(); signOut({ callbackUrl: '/' }); }}
+                    className={`text-sm font-medium ${textColor} hover:opacity-70 transition-opacity`}
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <Link
+                  href="/login"
+                  className={`text-sm font-medium ${textColor} hover:opacity-70 transition-opacity`}
+                >
+                  Sign In
+                </Link>
+              )}
+              <Link
+                href="/post"
+                className="bg-crimson text-white text-sm font-medium px-5 py-2.5 rounded hover:bg-crimson/90 transition-colors"
+              >
+                Post Property
+              </Link>
+            </div>
 
-              <div className="mt-8 flex flex-col gap-3">
-                {!session && (
-                  <>
-                    <Button asChild variant="outline" className="w-full">
-                      <Link href="/login">Login</Link>
-                    </Button>
-                    <Button asChild className="w-full">
-                      <Link href="/post">
-                        <Building2 className="mr-2 h-4 w-4" />
-                        Post Property
-                      </Link>
-                    </Button>
-                  </>
-                )}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className={`lg:hidden p-2 ${textColor}`}
+            >
+              {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          </div>
+        </div>
+      </nav>
 
-                {session && (
-                  <>
-                    {session.user.role === "SELLER" && (
-                      <>
-                        <Button asChild variant="outline" className="w-full">
-                          <Link href="/dashboard">Dashboard</Link>
-                        </Button>
-                        <Button asChild className="w-full">
-                          <Link href="/post">
-                            <Building2 className="mr-2 h-4 w-4" />
-                            Post Property
-                          </Link>
-                        </Button>
-                      </>
-                    )}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed inset-0 z-40 bg-charcoal pt-20"
+          >
+            <div className="flex flex-col items-center gap-6 pt-10">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.label}
+                  href={link.to}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-cream text-2xl font-serif hover:text-crimson transition-colors"
+                >
+                  {link.label}
+                </Link>
+              ))}
+              <div className="w-16 h-px bg-cream/20 my-4" />
+              {state.isAuthenticated ? (
+                <>
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="text-cream text-2xl font-serif hover:text-crimson transition-colors"
+                  >
+                    Dashboard
+                  </Link>
+                  <button
+                    onClick={() => {
+                      logout();
+                      signOut({ callbackUrl: '/' });
+                      setMobileMenuOpen(false);
+                    }}
+                    className="text-cream text-2xl font-serif hover:text-crimson transition-colors"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <Link
+                  href="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-cream text-2xl font-serif hover:text-crimson transition-colors"
+                >
+                  Sign In
+                </Link>
+              )}
+              <Link
+                href="/post"
+                onClick={() => setMobileMenuOpen(false)}
+                className="mt-4 bg-crimson text-white px-8 py-3 rounded font-medium"
+              >
+                Post Property
+              </Link>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-                    {session.user.role === "BUYER" && (
-                      <Button asChild variant="outline" className="w-full">
-                        <Link href="#">
-                          <Heart className="mr-2 h-4 w-4" />
-                          Saved
-                        </Link>
-                      </Button>
-                    )}
-
-                    <Button asChild variant="outline" className="w-full">
-                      <Link href="#">My Profile</Link>
-                    </Button>
-
-                    <form action={handleSignOut}>
-                      <Button type="submit" variant="ghost" className="w-full">
-                        Sign out
-                      </Button>
-                    </form>
-                  </>
-                )}
-              </div>
-            </SheetContent>
-          </Sheet>
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-cream/95 backdrop-blur-md border-t border-border-subtle lg:hidden">
+        <div className="flex items-center justify-around h-16">
+          <Link href="/" className={`flex flex-col items-center gap-0.5 ${pathname === '/' ? 'text-crimson' : 'text-charcoal/50'}`}>
+            <Home size={20} />
+            <span className="text-[10px] font-medium">Home</span>
+          </Link>
+          <Link href="/search" className={`flex flex-col items-center gap-0.5 ${pathname === '/search' ? 'text-crimson' : 'text-charcoal/50'}`}>
+            <Search size={20} />
+            <span className="text-[10px] font-medium">Search</span>
+          </Link>
+          <Link href="/post" className={`flex flex-col items-center gap-0.5 ${pathname === '/post' ? 'text-crimson' : 'text-charcoal/50'}`}>
+            <Plus size={20} />
+            <span className="text-[10px] font-medium">Post</span>
+          </Link>
+          <Link href="/saved" className={`flex flex-col items-center gap-0.5 ${pathname === '/saved' ? 'text-crimson' : 'text-charcoal/50'}`}>
+            <Heart size={20} />
+            <span className="text-[10px] font-medium">Saved</span>
+          </Link>
+          <Link href={state.isAuthenticated ? '/dashboard' : '/login'} className={`flex flex-col items-center gap-0.5 ${pathname === '/dashboard' || pathname === '/login' || pathname === '/signup' ? 'text-crimson' : 'text-charcoal/50'}`}>
+            <User size={20} />
+            <span className="text-[10px] font-medium">Profile</span>
+          </Link>
         </div>
       </div>
-    </header>
+    </>
   );
 }

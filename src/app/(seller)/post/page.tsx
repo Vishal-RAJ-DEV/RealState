@@ -1,3 +1,5 @@
-export default function PostPropertyPage() {
-  return <div>{/* TODO: Create property page */}</div>;
+import PostPropertyPage from "@/components/pages/PostPropertyPage"
+
+export default function Page() {
+  return <PostPropertyPage />
 }

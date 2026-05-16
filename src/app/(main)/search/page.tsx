@@ -1,3 +1,5 @@
-export default function SearchPage() {
-  return <div>{/* TODO: Search results page */}</div>;
+import SearchPage from "@/components/pages/SearchPage"
+
+export default function Page() {
+  return <SearchPage />
 }

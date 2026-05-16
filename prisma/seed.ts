@@ -3,7 +3,6 @@ import {
   Furnished,
   ListingFor,
   PropertyType,
-  Role,
   Status,
 } from "@prisma/client";
 
@@ -21,7 +20,6 @@ export async function main() {
         email: "buyer@propfinder.in",
         password: passwordHash,
         phone: "9876543210",
-        role: Role.BUYER,
       },
     });
 
@@ -33,7 +31,6 @@ export async function main() {
         email: "seller@propfinder.in",
         password: passwordHash,
         phone: "9876543211",
-        role: Role.SELLER,
       },
     });
 

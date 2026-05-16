@@ -1,17 +1,5 @@
-import type { Metadata } from "next";
+import AuthPage from "@/components/pages/AuthPage"
 
-import { LoginForm } from "@/components/auth/LoginForm";
-
-export const metadata: Metadata = {
-  title: "Sign in - PropFinder",
-};
-
-type LoginPageProps = {
-  searchParams?: {
-    error?: string;
-  };
-};
-
-export default function LoginPage({ searchParams }: LoginPageProps) {
-  return <LoginForm error={searchParams?.error} />;
+export default function LoginPage() {
+  return <AuthPage defaultTab="login" />
 }

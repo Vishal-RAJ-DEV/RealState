@@ -1,17 +1,9 @@
-import bcrypt from "bcryptjs";
-import { PrismaAdapter } from "@auth/prisma-adapter";
-import type { Role } from "@prisma/client";
 import NextAuth from "next-auth";
-import type { User } from "next-auth";
+import { PrismaAdapter } from "@auth/prisma-adapter";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
-
+import bcrypt from "bcryptjs";
 import { db } from "@/lib/prisma";
-import { loginSchema } from "@/lib/validations";
-
-type AuthUser = User & {
-  role: Role;
-};
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
@@ -32,90 +24,51 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const validated = loginSchema.safeParse(credentials);
+        if (!credentials?.email || !credentials?.password) return null;
 
-        if (!validated.success) {
-          return null;
-        }
+        const user = await db.user.findUnique({
+          where: { email: credentials.email as string },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            password: true,
+            phone: true,
+            image: true,
+          },
+        });
 
-        const { email, password } = validated.data;
+        if (!user || !user.password) return null;
 
-        try {
-          const user = await db.user.findUnique({
-            where: { email },
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              password: true,
-              role: true,
-              image: true,
-            },
-          });
+        const passwordMatch = await bcrypt.compare(
+          credentials.password as string,
+          user.password
+        );
+        if (!passwordMatch) return null;
 
-          if (!user || !user.password) {
-            return null;
-          }
-
-          const passwordMatch = await bcrypt.compare(password, user.password);
-
-          if (!passwordMatch) {
-            return null;
-          }
-
-          return {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            image: user.image ?? undefined,
-          };
-        } catch (error) {
-          console.error("Failed to authorize credentials:", error);
-          return null;
-        }
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone ?? undefined,
+          image: user.image ?? undefined,
+        };
       },
     }),
   ],
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id ?? token.id;
-
-        const authUser = user as Partial<AuthUser>;
-        if (authUser.role) {
-          token.role = authUser.role;
-          return token;
-        }
+        token.id = user.id!;
+        token.phone = (user as any).phone;
       }
-
-      if ((!token.role || !token.id) && token.email) {
-        try {
-          const existingUser = await db.user.findUnique({
-            where: { email: token.email },
-            select: {
-              id: true,
-              role: true,
-            },
-          });
-
-          if (existingUser) {
-            token.id = existingUser.id;
-            token.role = existingUser.role;
-          }
-        } catch (error) {
-          console.error("Failed to hydrate JWT token:", error);
-        }
-      }
-
       return token;
     },
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id;
-        session.user.role = token.role;
+        session.user.phone = token.phone as string | undefined;
       }
-
       return session;
     },
   },

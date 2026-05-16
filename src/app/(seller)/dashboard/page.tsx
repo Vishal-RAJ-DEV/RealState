@@ -1,3 +1,5 @@
-export default function DashboardPage() {
-  return <div>{/* TODO: Seller dashboard page */}</div>;
+import DashboardPage from "@/components/pages/DashboardPage"
+
+export default function Page() {
+  return <DashboardPage />
 }
