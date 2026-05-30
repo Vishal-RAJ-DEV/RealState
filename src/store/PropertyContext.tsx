@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import type { Property, FilterState, User } from '@/types';
-import { properties } from '@/data/properties';
 
 interface AppState {
   properties: Property[];
@@ -11,6 +10,14 @@ interface AppState {
   filters: FilterState;
   currentUser: User | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasMore: boolean;
+  } | null;
 }
 
 type Action =
@@ -19,7 +26,16 @@ type Action =
   | { type: 'TOGGLE_SAVE'; payload: string }
   | { type: 'ADD_PROPERTY'; payload: Property }
   | { type: 'SET_USER'; payload: User | null }
-  | { type: 'LOGOUT' };
+  | { type: 'LOGOUT' }
+  | { type: 'SET_PROPERTIES'; payload: Property[] }
+  | { type: 'SET_PAGINATION'; payload: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasMore: boolean;
+  } }
+  | { type: 'SET_LOADING'; payload: boolean };
 
 const defaultFilters: FilterState = {
   city: '',
@@ -32,11 +48,13 @@ const defaultFilters: FilterState = {
 };
 
 const initialState: AppState = {
-  properties,
+  properties: [],
   savedProperties: [],
   filters: defaultFilters,
   currentUser: null,
   isAuthenticated: false,
+  isLoading: false,
+  pagination: null,
 };
 
 function appReducer(state: AppState, action: Action): AppState {
@@ -58,6 +76,12 @@ function appReducer(state: AppState, action: Action): AppState {
       return { ...state, currentUser: action.payload, isAuthenticated: !!action.payload };
     case 'LOGOUT':
       return { ...state, currentUser: null, isAuthenticated: false, savedProperties: [] };
+    case 'SET_PROPERTIES':
+      return { ...state, properties: action.payload };
+    case 'SET_PAGINATION':
+      return { ...state, pagination: action.payload };
+    case 'SET_LOADING':
+      return { ...state, isLoading: action.payload };
     default:
       return state;
   }
@@ -75,6 +99,11 @@ interface AppContextValue {
   getFilteredProperties: () => Property[];
   getSavedProperties: () => Property[];
   getUserListings: () => Property[];
+  fetchProperties: (filters?: FilterState) => Promise<void>;
+  fetchPropertyById: (id: string) => Promise<Property | null>;
+  createProperty: (propertyData: any) => Promise<Property>;
+  updateProperty: (id: string, data: any) => Promise<Property>;
+  deleteProperty: (id: string) => Promise<boolean>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -126,6 +155,104 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'LOGOUT' });
   }, []);
 
+  const fetchProperties = useCallback(async (filters?: FilterState) => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    try {
+      const params = new URLSearchParams();
+      if (filters?.city) params.set("city", filters.city);
+      if (filters?.propertyType) params.set("type", filters.propertyType);
+      if (filters?.listingType) {
+        const listingFor = filters.listingType === 'Buy' ? 'SALE' : 'RENT';
+        params.set("listingFor", listingFor);
+      }
+      if (filters?.minPrice !== undefined) params.set("minPrice", String(filters.minPrice));
+      if (filters?.maxPrice !== undefined) params.set("maxPrice", String(filters.maxPrice));
+      if (filters?.beds !== undefined && filters?.beds > 0) params.set("bhk", String(filters.beds));
+      if (filters?.searchQuery) params.set("search", filters.searchQuery);
+
+      const res = await fetch(`/api/properties?${params.toString()}`);
+      if (!res.ok) throw new Error("Failed to fetch properties");
+      const data = await res.json();
+      
+      dispatch({ type: 'SET_PROPERTIES', payload: data.properties });
+      dispatch({ type: 'SET_PAGINATION', payload: data.pagination });
+    } catch (error) {
+      console.error("Error fetching properties:", error);
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, []);
+
+  const fetchPropertyById = useCallback(async (id: string) => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    try {
+      const res = await fetch(`/api/properties/${id}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data;
+    } catch (error) {
+      console.error("Error fetching property:", error);
+      return null;
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, []);
+
+  const createProperty = useCallback(async (propertyData: any) => {
+    try {
+      const res = await fetch("/api/properties", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(propertyData),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to create property");
+      }
+      const data = await res.json();
+      // Add to local state immediately
+      dispatch({ type: 'ADD_PROPERTY', payload: data });
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  }, []);
+
+  const updateProperty = useCallback(async (id: string, data: any) => {
+    try {
+      const res = await fetch(`/api/properties/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed to update property");
+      const updated = await res.json();
+      // Update in local state
+      dispatch({ type: 'SET_PROPERTIES', payload: 
+        state.properties.map(p => p.id === id ? updated : p)
+      });
+      return updated;
+    } catch (error) {
+      throw error;
+    }
+  }, []);
+
+  const deleteProperty = useCallback(async (id: string) => {
+    try {
+      const res = await fetch(`/api/properties/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete property");
+      // Remove from local state
+      dispatch({ type: 'SET_PROPERTIES', payload: 
+        state.properties.filter(p => p.id !== id)
+      });
+      return true;
+    } catch (error) {
+      throw error;
+    }
+  }, []);
+
   const getFilteredProperties = useCallback(() => {
     const { city, listingType, propertyType, minPrice, maxPrice, beds, searchQuery } = state.filters;
     return state.properties.filter((p) => {
@@ -157,6 +284,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return state.properties.filter((p) => p.owner.name === state.currentUser?.name);
   }, [state.properties, state.currentUser]);
 
+  // Fetch initial properties on mount
+  useEffect(() => {
+    fetchProperties();
+  }, [fetchProperties]);
+
   const value: AppContextValue = {
     state,
     dispatch,
@@ -169,6 +301,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     getFilteredProperties,
     getSavedProperties,
     getUserListings,
+    fetchProperties,
+    fetchPropertyById,
+    createProperty,
+    updateProperty,
+    deleteProperty,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

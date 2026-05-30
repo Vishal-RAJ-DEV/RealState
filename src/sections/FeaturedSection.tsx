@@ -4,10 +4,11 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import PropertyCard from '@/components/property/PropertyCard';
-import { properties } from '@/data/properties';
+import { useApp } from '@/store/PropertyContext';
 
 export default function FeaturedSection() {
-  const featured = properties.slice(0, 8);
+  const { state } = useApp();
+  const featured = state.properties.slice(0, 8);
 
   return (
     <section className="w-full py-20 lg:py-32 bg-cream">

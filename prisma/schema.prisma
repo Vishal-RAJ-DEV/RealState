@@ -7,19 +7,19 @@ datasource db {
 }
 
 model User {
-  id         String     @id @default(cuid())
-  name       String
-  email      String     @unique
+  id            String     @id @default(cuid())
+  name          String
+  email         String     @unique
   password      String?
   phone         String?
   image         String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
   emailVerified DateTime?
+  accounts      Account[]
+  leads         Lead[]
   properties    Property[]
-  leads      Lead[]
-  accounts   Account[]
-  sessions   Session[]
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  sessions      Session[]
 }
 
 model Property {
@@ -42,24 +42,24 @@ model Property {
   age         Int?
   status      Status       @default(ACTIVE)
   views       Int          @default(0)
-  seller      User         @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   sellerId    String
-  leads       Lead[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+  leads       Lead[]
+  seller      User         @relation(fields: [sellerId], references: [id], onDelete: Cascade)
 }
 
 model Lead {
   id         String   @id @default(cuid())
-  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   propertyId String
-  buyer      User?    @relation(fields: [buyerId], references: [id])
   buyerId    String?
   name       String
   phone      String
   email      String
   message    String?
   createdAt  DateTime @default(now())
+  buyer      User?    @relation(fields: [buyerId], references: [id])
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 }
 
 model Account {
@@ -68,12 +68,12 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 

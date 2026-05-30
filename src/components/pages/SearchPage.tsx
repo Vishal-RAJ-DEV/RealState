@@ -10,10 +10,11 @@ import { cities } from '@/data/properties';
 
 function SearchContent() {
   const searchParams = useSearchParams();
-  const { state, setFilter, resetFilters } = useApp();
+  const { state, setFilter, resetFilters, fetchProperties } = useApp();
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState('relevant');
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     const type = searchParams?.get('type');
@@ -21,6 +22,15 @@ function SearchContent() {
     if (type === 'Rent') setFilter({ listingType: 'Rent' });
     if (type === 'Commercial') setFilter({ listingType: 'Commercial' });
   }, [searchParams, setFilter]);
+
+  useEffect(() => {
+    const timeout = setTimeout(async () => {
+      setIsSearching(true);
+      await fetchProperties(state.filters);
+      setIsSearching(false);
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [state.filters, fetchProperties]);
 
   const filteredProperties = useMemo(() => {
     const { city, listingType, propertyType, minPrice, maxPrice, beds, searchQuery } = state.filters;
@@ -232,7 +242,20 @@ function SearchContent() {
           </span>
         </div>
 
-        {sortedProperties.length === 0 ? (
+        {isSearching ? (
+          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-xl overflow-hidden border border-border-subtle animate-pulse">
+                <div className="h-48 bg-charcoal/5" />
+                <div className="p-4 space-y-3">
+                  <div className="h-4 bg-charcoal/5 rounded w-3/4" />
+                  <div className="h-3 bg-charcoal/5 rounded w-1/2" />
+                  <div className="h-3 bg-charcoal/5 rounded w-1/4" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : sortedProperties.length === 0 ? (
           <div className="text-center py-20">
             <Search size={48} className="mx-auto text-charcoal/20 mb-4" />
             <h3 className="font-serif text-xl text-charcoal mb-2">No properties found</h3>

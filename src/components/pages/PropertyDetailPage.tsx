@@ -10,7 +10,8 @@ import {
   ChevronLeft, ChevronRight, Shield,
 } from 'lucide-react';
 import { useApp } from '@/store/PropertyContext';
-import { properties } from '@/data/properties';
+import type { Property } from '@/types';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 
 interface PropertyDetailPageProps {
   params: { id: string };
@@ -18,16 +19,35 @@ interface PropertyDetailPageProps {
 
 export default function PropertyDetailPage({ params }: PropertyDetailPageProps) {
   const router = useRouter();
-  const { state, toggleSave } = useApp();
+  const { state, toggleSave, fetchPropertyById } = useApp();
   const [currentImage, setCurrentImage] = useState(0);
   const [showAllAmenities, setShowAllAmenities] = useState(false);
+  const [property, setProperty] = useState<Property | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [params.id]);
 
-  const property = properties.find((p) => p.id === params.id);
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      const data = await fetchPropertyById(params.id);
+      setProperty(data);
+      setLoading(false);
+    };
+    load();
+  }, [params.id, fetchPropertyById]);
+
   const isSaved = property ? state.savedProperties.includes(property.id) : false;
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-cream pt-20 flex items-center justify-center">
+        <LoadingSpinner />
+      </main>
+    );
+  }
 
   if (!property) {
     return (

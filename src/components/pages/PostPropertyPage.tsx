@@ -4,10 +4,21 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Upload, X, Home, Building2, Castle, Store, ChevronRight, Check } from 'lucide-react';
+import { ArrowLeft, Upload, X, Home, Building2, Castle, Store, ChevronRight, Check, Loader2 } from 'lucide-react';
 import { useApp } from '@/store/PropertyContext';
 import { amenitiesList } from '@/data/properties';
-import type { Property } from '@/types';
+
+const typeMap: Record<string, string> = {
+  Flat: 'FLAT',
+  Villa: 'VILLA',
+  Plot: 'PLOT',
+  Commercial: 'COMMERCIAL',
+};
+
+const listingMap: Record<string, string> = {
+  Sale: 'SALE',
+  Rent: 'RENT',
+};
 
 const propertyTypes = [
   { label: 'Flat', icon: Building2 },
@@ -18,8 +29,10 @@ const propertyTypes = [
 
 export default function PostPropertyPage() {
   const router = useRouter();
-  const { addProperty, state } = useApp();
+  const { createProperty } = useApp();
   const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const [formData, setFormData] = useState({
     title: '',
     listingType: 'Sale' as 'Sale' | 'Rent',
@@ -48,14 +61,30 @@ export default function PostPropertyPage() {
     }));
   };
 
-  const handleImageUpload = () => {
-    const newImages = [
-      `/images/prop_${(formData.images.length % 12) + 1}.jpg`,
-    ];
-    setFormData((prev) => ({
-      ...prev,
-      images: [...prev.images, ...newImages].slice(0, 8),
-    }));
+  const handleImageUpload = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.multiple = true;
+    input.onchange = async () => {
+      const files = Array.from(input.files || []);
+      const uploadPromises = files.map(async (file) => {
+        const body = new FormData();
+        body.append('file', file);
+        const res = await fetch('/api/upload', { method: 'POST', body });
+        if (res.ok) {
+          const data = await res.json();
+          return data.url;
+        }
+        return null;
+      });
+      const urls = (await Promise.all(uploadPromises)).filter(Boolean) as string[];
+      setFormData((prev) => ({
+        ...prev,
+        images: [...prev.images, ...urls].slice(0, 8),
+      }));
+    };
+    input.click();
   };
 
   const removeImage = (index: number) => {
@@ -65,39 +94,28 @@ export default function PostPropertyPage() {
     }));
   };
 
-  const handleSubmit = () => {
-    const newProperty: Property = {
-      id: Date.now().toString(),
-      title: formData.title,
-      location: `${formData.locality}, ${formData.city}`,
-      address: `${formData.locality}, ${formData.city}`,
-      price: Number(formData.price),
-      pricePerSqft: Number(formData.price) / Number(formData.sqft),
-      beds: formData.beds,
-      baths: formData.baths,
-      sqft: Number(formData.sqft),
-      type: formData.propertyType as Property['type'],
-      listingType: formData.listingType,
-      floor: 'Ground',
-      furnished: 'Unfurnished',
-      facing: 'South',
-      age: 'New',
-      images: formData.images.length > 0 ? formData.images : ['/images/prop_1.jpg'],
-      description: formData.description,
-      amenities: formData.selectedAmenities,
-      verified: true,
-      owner: {
-        name: state.currentUser?.name || 'You',
-        phone: state.currentUser?.phone || '+1 (000) 000-0000',
-        memberSince: new Date().getFullYear().toString(),
-        avatar: state.currentUser?.avatar || '',
-      },
-      postedDate: new Date().toISOString().split('T')[0],
-      status: 'Active',
-      city: formData.city,
-    };
-    addProperty(newProperty);
-    router.push('/dashboard');
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    setSubmitError('');
+    try {
+      await createProperty({
+        title: formData.title,
+        description: formData.description,
+        price: Number(formData.price),
+        type: typeMap[formData.propertyType] || 'FLAT',
+        listingFor: listingMap[formData.listingType] || 'SALE',
+        bhk: formData.beds,
+        area: Number(formData.sqft) || undefined,
+        city: formData.city,
+        locality: formData.locality,
+        images: formData.images.length > 0 ? formData.images : undefined,
+      });
+      router.push('/dashboard');
+    } catch (error: any) {
+      setSubmitError(error?.message || 'Failed to create property. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const isStep1Valid = formData.title && formData.propertyType && formData.beds > 0 && formData.price && formData.city && formData.locality;
@@ -370,6 +388,12 @@ export default function PostPropertyPage() {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {submitError && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              {submitError}
+            </div>
+          )}
         </div>
       </div>
 
@@ -395,11 +419,15 @@ export default function PostPropertyPage() {
           ) : (
             <button
               onClick={handleSubmit}
-              disabled={!isStep3Valid}
+              disabled={!isStep3Valid || isSubmitting}
               className="flex-1 py-3.5 bg-crimson text-white rounded-xl font-medium hover:bg-crimson/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Post Property
-              <Check size={18} />
+              {isSubmitting ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <Check size={18} />
+              )}
+              {isSubmitting ? 'Posting...' : 'Post Property'}
             </button>
           )}
         </div>
