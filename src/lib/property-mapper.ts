@@ -9,11 +9,13 @@ export type ApiProperty = {
   type: string;
   listingFor: string;
   bhk: number | null;
+  baths: number | null;
   area: number | null;
   city: string;
   locality: string;
   address: string | null;
   images: string[];
+  amenities: string[];
   furnished: string | null;
   floor: number | null;
   totalFloors: number | null;
@@ -37,25 +39,26 @@ export type ApiProperty = {
 };
 
 export function mapPropertyToFrontend(property: ApiProperty) {
+  const images = property.images.length > 0 ? property.images : ['/images/placeholder.jpg'];
   return {
     id: property.id,
     title: property.title,
     location: `${property.city}, ${property.locality}`.trim().replace(/^, /, '').replace(/,$/, ''),
-    address: property.address || '',
+    address: property.address || `${property.city}, ${property.locality}`,
     price: property.price,
-    pricePerSqft: property.area ? Math.round(property.price / property.area) : 0,
+    pricePerSqft: property.area && property.area > 0 ? Math.round(property.price / property.area) : 0,
     beds: property.bhk ?? 0,
-    baths: 0,
+    baths: property.baths ?? 0,
     sqft: property.area ?? 0,
     type: mapPropertyType(property.type),
     listingType: property.listingFor === 'SALE' ? 'Sale' : 'Rent',
-    floor: property.floor ? property.floor.toString() : 'Ground',
+    floor: property.floor != null ? property.floor.toString() : 'Ground',
     furnished: mapFurnished(property.furnished),
     facing: property.facing || 'North',
-    age: property.age ? `${property.age} years` : 'New',
-    images: property.images,
+    age: property.age != null ? `${property.age} years` : 'New',
+    images,
     description: property.description,
-    amenities: [],
+    amenities: property.amenities || [],
     verified: true,
     owner: {
       name: property.seller.name,

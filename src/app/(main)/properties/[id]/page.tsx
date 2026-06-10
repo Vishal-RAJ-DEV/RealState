@@ -1,11 +1,5 @@
-type PropertyDetailsPageProps = {
-  params: {
-    id: string;
-  };
-};
+import PropertyDetailPage from "@/components/pages/PropertyDetailPage";
 
-export default function PropertyDetailsPage({
-  params,
-}: PropertyDetailsPageProps) {
-  return <div>{/* TODO: Property details page for {params.id} */}</div>;
+export default function Page({ params }: { params: { id: string } }) {
+  return <PropertyDetailPage params={params} />;
 }

@@ -3,11 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Share2, Heart, MapPin, Check, Phone, MessageSquare,
   Bed, Bath, Maximize, Layers, Sofa, Compass, Calendar,
-  ChevronLeft, ChevronRight, Shield,
+  ChevronLeft, ChevronRight, Shield, X, Send, Loader2,
 } from 'lucide-react';
 import { useApp } from '@/store/PropertyContext';
 import type { Property } from '@/types';
@@ -24,6 +24,11 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
   const [showAllAmenities, setShowAllAmenities] = useState(false);
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showContactForm, setShowContactForm] = useState(false);
+  const [contactForm, setContactForm] = useState({ name: '', phone: '', email: '', message: '' });
+  const [contactSubmitting, setContactSubmitting] = useState(false);
+  const [contactSuccess, setContactSuccess] = useState('');
+  const [contactError, setContactError] = useState('');
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -34,12 +39,36 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
       setLoading(true);
       const data = await fetchPropertyById(params.id);
       setProperty(data);
+      setCurrentImage(0);
       setLoading(false);
     };
     load();
   }, [params.id, fetchPropertyById]);
 
   const isSaved = property ? state.savedProperties.includes(property.id) : false;
+
+  const handleContactSubmit = async () => {
+    setContactSubmitting(true);
+    setContactError('');
+    setContactSuccess('');
+    try {
+      const res = await fetch(`/api/leads/${params.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(contactForm),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to send message');
+      }
+      setContactSuccess('Your message has been sent! The owner will contact you soon.');
+      setContactForm({ name: '', phone: '', email: '', message: '' });
+    } catch (error: any) {
+      setContactError(error?.message || 'Failed to send message.');
+    } finally {
+      setContactSubmitting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -121,7 +150,7 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
           className="relative w-full h-full"
         >
           <Image
-            src={property.images[currentImage]}
+            src={property.images[currentImage] || '/images/placeholder.jpg'}
             alt={property.title}
             fill
             className="object-cover"
@@ -188,7 +217,7 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
                   {formatPrice(property.price)}
                 </h1>
                 <span className="text-sm text-muted-foreground">
-                  ${Math.round(property.price / property.sqft).toLocaleString()}/sqft
+                  {property.sqft ? `$${Math.round(property.price / property.sqft).toLocaleString()}/sqft` : ''}
                 </span>
               </div>
               <h2 className="font-serif text-xl sm:text-2xl text-charcoal/90 mb-3">
@@ -303,7 +332,10 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
                     <Phone size={18} />
                     Call Now
                   </a>
-                  <button className="flex items-center justify-center gap-2 w-full py-3.5 bg-crimson text-white rounded-xl font-medium hover:bg-crimson/90 transition-colors">
+                  <button
+                    onClick={() => { setShowContactForm(true); setContactError(''); setContactSuccess(''); }}
+                    className="flex items-center justify-center gap-2 w-full py-3.5 bg-crimson text-white rounded-xl font-medium hover:bg-crimson/90 transition-colors"
+                  >
                     <MessageSquare size={18} />
                     Send Message
                   </button>
@@ -339,12 +371,100 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
             <Phone size={18} />
             Call Now
           </a>
-          <button className="flex-1 flex items-center justify-center gap-2 py-3 bg-crimson text-white rounded-xl font-medium">
+          <button
+            onClick={() => { setShowContactForm(true); setContactError(''); setContactSuccess(''); }}
+            className="flex-1 flex items-center justify-center gap-2 py-3 bg-crimson text-white rounded-xl font-medium"
+          >
             <MessageSquare size={18} />
             Message
           </button>
         </div>
       </div>
+
+      {/* Contact Form Modal */}
+      <AnimatePresence>
+        {showContactForm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center"
+            onClick={() => setShowContactForm(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 100 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 100 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md p-6 shadow-xl"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-serif text-xl text-charcoal">Send Message</h3>
+                <button
+                  onClick={() => setShowContactForm(false)}
+                  className="w-8 h-8 rounded-full bg-charcoal/5 flex items-center justify-center"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {contactSuccess ? (
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700 mb-4">
+                  {contactSuccess}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <input
+                    type="text"
+                    placeholder="Your Name"
+                    value={contactForm.name}
+                    onChange={(e) => setContactForm(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full h-12 px-4 bg-white border border-border-subtle rounded-lg text-charcoal placeholder:text-charcoal/40 outline-none focus:border-charcoal transition-colors"
+                  />
+                  <input
+                    type="tel"
+                    placeholder="Phone Number"
+                    value={contactForm.phone}
+                    onChange={(e) => setContactForm(prev => ({ ...prev, phone: e.target.value }))}
+                    className="w-full h-12 px-4 bg-white border border-border-subtle rounded-lg text-charcoal placeholder:text-charcoal/40 outline-none focus:border-charcoal transition-colors"
+                  />
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={contactForm.email}
+                    onChange={(e) => setContactForm(prev => ({ ...prev, email: e.target.value }))}
+                    className="w-full h-12 px-4 bg-white border border-border-subtle rounded-lg text-charcoal placeholder:text-charcoal/40 outline-none focus:border-charcoal transition-colors"
+                  />
+                  <textarea
+                    placeholder="Message (optional)"
+                    value={contactForm.message}
+                    onChange={(e) => setContactForm(prev => ({ ...prev, message: e.target.value }))}
+                    rows={3}
+                    className="w-full px-4 py-3 bg-white border border-border-subtle rounded-lg text-charcoal placeholder:text-charcoal/40 outline-none focus:border-charcoal transition-colors resize-none"
+                  />
+                  {contactError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                      {contactError}
+                    </div>
+                  )}
+                  <button
+                    onClick={handleContactSubmit}
+                    disabled={contactSubmitting || !contactForm.name || !contactForm.phone || !contactForm.email}
+                    className="w-full py-3.5 bg-crimson text-white rounded-xl font-medium hover:bg-crimson/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {contactSubmitting ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <Send size={18} />
+                    )}
+                    {contactSubmitting ? 'Sending...' : 'Send Message'}
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   );
 }

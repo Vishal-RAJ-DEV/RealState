@@ -20,6 +20,12 @@ const listingMap: Record<string, string> = {
   Rent: 'RENT',
 };
 
+const furnishedMap: Record<string, string> = {
+  'Unfurnished': 'UNFURNISHED',
+  'Semi-Furnished': 'SEMI',
+  'Fully Furnished': 'FULLY',
+};
+
 const propertyTypes = [
   { label: 'Flat', icon: Building2 },
   { label: 'Villa', icon: Castle },
@@ -42,9 +48,15 @@ export default function PostPropertyPage() {
     price: '',
     city: '',
     locality: '',
+    address: '',
     sqft: '',
     description: '',
     selectedAmenities: [] as string[],
+    furnished: '',
+    floor: 0,
+    totalFloors: 0,
+    facing: '',
+    age: 0,
     images: [] as string[],
   });
 
@@ -76,13 +88,24 @@ export default function PostPropertyPage() {
           const data = await res.json();
           return data.url;
         }
-        return null;
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Upload failed');
       });
-      const urls = (await Promise.all(uploadPromises)).filter(Boolean) as string[];
-      setFormData((prev) => ({
-        ...prev,
-        images: [...prev.images, ...urls].slice(0, 8),
-      }));
+      try {
+        const urls = await Promise.all(uploadPromises);
+        const validUrls = urls.filter(Boolean) as string[];
+        if (validUrls.length < files.length) {
+          const failed = files.length - validUrls.length;
+          setSubmitError(`${failed} image(s) failed to upload.`);
+        }
+        setFormData((prev) => ({
+          ...prev,
+          images: [...prev.images, ...validUrls].slice(0, 8),
+        }));
+        setSubmitError('');
+      } catch (error: any) {
+        setSubmitError(error?.message || 'Image upload failed.');
+      }
     };
     input.click();
   };
@@ -105,10 +128,18 @@ export default function PostPropertyPage() {
         type: typeMap[formData.propertyType] || 'FLAT',
         listingFor: listingMap[formData.listingType] || 'SALE',
         bhk: formData.beds,
+        baths: formData.baths || undefined,
         area: Number(formData.sqft) || undefined,
         city: formData.city,
         locality: formData.locality,
+        address: formData.address || undefined,
+        totalFloors: formData.totalFloors || undefined,
+        facing: formData.facing || undefined,
+        age: formData.age || undefined,
+        floor: formData.floor || undefined,
+        furnished: furnishedMap[formData.furnished] || undefined,
         images: formData.images.length > 0 ? formData.images : undefined,
+        amenities: formData.selectedAmenities,
       });
       router.push('/dashboard');
     } catch (error: any) {
@@ -289,6 +320,17 @@ export default function PostPropertyPage() {
                     />
                   </div>
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-charcoal mb-2">Full Address</label>
+                  <input
+                    type="text"
+                    value={formData.address}
+                    onChange={(e) => updateField('address', e.target.value)}
+                    placeholder="e.g., 123 Main Street, Apt 4B"
+                    className="w-full h-12 px-4 bg-white border border-border-subtle rounded-lg text-charcoal placeholder:text-charcoal/40 outline-none focus:border-charcoal transition-colors"
+                  />
+                </div>
               </motion.div>
             )}
 
@@ -322,6 +364,73 @@ export default function PostPropertyPage() {
                     rows={5}
                     className="w-full px-4 py-3 bg-white border border-border-subtle rounded-lg text-charcoal placeholder:text-charcoal/40 outline-none focus:border-charcoal transition-colors resize-none"
                   />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-charcoal mb-2">Furnished</label>
+                    <select
+                      value={formData.furnished}
+                      onChange={(e) => updateField('furnished', e.target.value)}
+                      className="w-full h-12 px-4 bg-white border border-border-subtle rounded-lg text-charcoal outline-none focus:border-charcoal transition-colors"
+                    >
+                      <option value="">Select...</option>
+                      <option value="Unfurnished">Unfurnished</option>
+                      <option value="Semi-Furnished">Semi-Furnished</option>
+                      <option value="Fully Furnished">Fully Furnished</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-charcoal mb-2">Facing</label>
+                    <select
+                      value={formData.facing}
+                      onChange={(e) => updateField('facing', e.target.value)}
+                      className="w-full h-12 px-4 bg-white border border-border-subtle rounded-lg text-charcoal outline-none focus:border-charcoal transition-colors"
+                    >
+                      <option value="">Select...</option>
+                      <option value="North">North</option>
+                      <option value="South">South</option>
+                      <option value="East">East</option>
+                      <option value="West">West</option>
+                      <option value="North-East">North-East</option>
+                      <option value="North-West">North-West</option>
+                      <option value="South-East">South-East</option>
+                      <option value="South-West">South-West</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-charcoal mb-2">Floor</label>
+                    <input
+                      type="number"
+                      value={formData.floor || ''}
+                      onChange={(e) => updateField('floor', Number(e.target.value) || 0)}
+                      placeholder="e.g., 2"
+                      className="w-full h-12 px-4 bg-white border border-border-subtle rounded-lg text-charcoal placeholder:text-charcoal/40 outline-none focus:border-charcoal transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-charcoal mb-2">Total Floors</label>
+                    <input
+                      type="number"
+                      value={formData.totalFloors || ''}
+                      onChange={(e) => updateField('totalFloors', Number(e.target.value) || 0)}
+                      placeholder="e.g., 10"
+                      className="w-full h-12 px-4 bg-white border border-border-subtle rounded-lg text-charcoal placeholder:text-charcoal/40 outline-none focus:border-charcoal transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-charcoal mb-2">Age (years)</label>
+                    <input
+                      type="number"
+                      value={formData.age || ''}
+                      onChange={(e) => updateField('age', Number(e.target.value) || 0)}
+                      placeholder="e.g., 5"
+                      className="w-full h-12 px-4 bg-white border border-border-subtle rounded-lg text-charcoal placeholder:text-charcoal/40 outline-none focus:border-charcoal transition-colors"
+                    />
+                  </div>
                 </div>
 
                 <div>

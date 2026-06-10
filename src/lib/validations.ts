@@ -19,12 +19,19 @@ export const propertySchema = z.object({
   type: z.enum(["FLAT", "VILLA", "PLOT", "COMMERCIAL"]),
   listingFor: z.enum(["SALE", "RENT"]),
   bhk: z.number().optional(),
+  baths: z.number().optional(),
   area: z.number().optional(),
   city: z.string().min(1, "City is required"),
   locality: z.string().min(1, "Locality is required"),
+  address: z.string().optional(),
+  totalFloors: z.number().optional(),
+  facing: z.string().optional(),
+  age: z.number().optional(),
   furnished: z.enum(["UNFURNISHED", "SEMI", "FULLY"]).optional(),
   floor: z.number().optional(),
   images: z.array(z.string()).default([]),
+  amenities: z.array(z.string()).default([]),
+  status: z.enum(["ACTIVE", "SOLD", "RENTED"]).optional(),
 });
 
 export const leadSchema = z.object({

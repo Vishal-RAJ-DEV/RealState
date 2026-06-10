@@ -30,7 +30,6 @@ export type SearchFilters = {
   sort?: string;
 };
 
-// Legacy mock types (from src2 migration)
 export interface Property {
   id: string;
   title: string;
@@ -60,6 +59,8 @@ export interface Property {
   postedDate: string;
   status: 'Active' | 'Sold' | 'Rented';
   city: string;
+  views?: number;
+  leads?: number;
 }
 
 export interface User {

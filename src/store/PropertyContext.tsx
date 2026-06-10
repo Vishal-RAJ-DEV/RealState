@@ -112,6 +112,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const { data: session } = useSession();
 
+  // Load saved property IDs from API when user logs in
   useEffect(() => {
     if (session?.user && !state.currentUser) {
       dispatch({
@@ -125,6 +126,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           memberSince: new Date().getFullYear().toString(),
         },
       });
+      // Load saved properties from server
+      fetch('/api/saved-properties')
+        .then(res => res.json())
+        .then(data => {
+          if (data.savedIds) {
+            data.savedIds.forEach((id: string) => {
+              if (!initialState.savedProperties.includes(id)) {
+                dispatch({ type: 'TOGGLE_SAVE', payload: id });
+              }
+            });
+          }
+        })
+        .catch(console.error);
     }
     if (!session && state.currentUser) {
       dispatch({ type: 'LOGOUT' });
@@ -140,8 +154,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const toggleSave = useCallback((id: string) => {
+    // Optimistic UI update
     dispatch({ type: 'TOGGLE_SAVE', payload: id });
-  }, []);
+    // Persist to server if logged in (fire and forget)
+    if (state.currentUser) {
+      fetch('/api/saved-properties', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ propertyId: id }),
+      }).catch(console.error);
+    }
+  }, [state.currentUser]);
 
   const addProperty = useCallback((property: Property) => {
     dispatch({ type: 'ADD_PROPERTY', payload: property });

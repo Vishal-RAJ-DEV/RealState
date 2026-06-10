@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   Bell, Plus, Building2, Eye, Phone, MoreVertical,
-  Heart, Trash2,
+  Heart, Trash2, MessageSquare, Mail, Calendar,
 } from 'lucide-react';
 import { useApp } from '@/store/PropertyContext';
 import PropertyCard from '@/components/property/PropertyCard';
@@ -18,6 +18,8 @@ export default function DashboardPage() {
   const savedProperties = getSavedProperties();
   const [showMenu, setShowMenu] = useState<string | null>(null);
   const [myListings, setMyListings] = useState<any[]>([]);
+  const [leads, setLeads] = useState<any[]>([]);
+  const [showLeads, setShowLeads] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
@@ -36,6 +38,10 @@ export default function DashboardPage() {
           setMyListings(data.properties);
           setStats(data.stats);
         }
+        const leadsRes = await fetch('/api/leads/received');
+        if (leadsRes.ok) {
+          setLeads(await leadsRes.json());
+        }
       } catch (error) {
         console.error('Error fetching my listings:', error);
       } finally {
@@ -48,10 +54,8 @@ export default function DashboardPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this property? This action cannot be undone.')) return;
     try {
-      const res = await fetch(`/api/properties/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        setMyListings(prev => prev.filter(p => p.id !== id));
-      }
+      await deleteProperty(id);
+      setMyListings(prev => prev.filter(p => p.id !== id));
     } catch (error) {
       console.error('Error deleting property:', error);
     }
@@ -198,14 +202,47 @@ export default function DashboardPage() {
                         <MoreVertical size={16} />
                       </button>
                       {showMenu === property.id && (
-                        <div className="absolute right-0 top-full mt-1 bg-white border border-border-subtle rounded-lg shadow-lg py-1 z-10 w-32">
-                          <button
-                            onClick={() => setShowMenu(null)}
+                        <div className="absolute right-0 top-full mt-1 bg-white border border-border-subtle rounded-lg shadow-lg py-1 z-10 w-44">
+                          <Link
+                            href={`/edit/${property.id}`}
                             className="w-full text-left px-3 py-2 text-sm text-charcoal hover:bg-charcoal/5 flex items-center gap-2"
                           >
                             <Eye size={14} />
-                            View
-                          </button>
+                            View / Edit
+                          </Link>
+                          {(['Active', 'Sold', 'Rented'] as const).map((s) => (
+                            s !== property.status && (
+                              <button
+                                key={s}
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  setShowMenu(null);
+                                  try {
+                                    await fetch(`/api/properties/${property.id}`, {
+                                      method: 'PATCH',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ status: s.toUpperCase() }),
+                                    });
+                                    setMyListings(prev => prev.map(p =>
+                                      p.id === property.id ? { ...p, status: s } : p
+                                    ));
+                                    setStats(prev => {
+                                      const newStats = { ...prev };
+                                      if (s === 'Active') { newStats.active++; if (property.status === 'Sold') newStats.sold--; else newStats.total--; }
+                                      if (s === 'Sold') { newStats.sold++; newStats.active--; }
+                                      if (s === 'Rented') { newStats.active--; }
+                                      return newStats;
+                                    });
+                                  } catch (err) {
+                                    console.error('Failed to update status', err);
+                                  }
+                                }}
+                                className="w-full text-left px-3 py-2 text-sm text-charcoal hover:bg-charcoal/5 flex items-center gap-2"
+                              >
+                                Mark as {s}
+                              </button>
+                            )
+                          ))}
                           <button
                             onClick={(e) => { e.stopPropagation(); setShowMenu(null); handleDelete(property.id); }}
                             className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
@@ -230,37 +267,101 @@ export default function DashboardPage() {
             )}
           </div>
 
-          <div className="lg:w-[400px] shrink-0">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-serif text-xl text-charcoal">Saved Properties</h3>
-              {savedProperties.length > 0 && (
-                <Link href="/saved" className="text-sm text-crimson hover:underline">
-                  View all
-                </Link>
+          <div className="lg:w-[400px] shrink-0 space-y-8">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-serif text-xl text-charcoal">Saved Properties</h3>
+                {savedProperties.length > 0 && (
+                  <Link href="/saved" className="text-sm text-crimson hover:underline">
+                    View all
+                  </Link>
+                )}
+              </div>
+
+              {savedProperties.length === 0 ? (
+                <div className="bg-white rounded-xl p-8 border border-border-subtle text-center">
+                  <Heart size={40} className="mx-auto text-charcoal/20 mb-3" />
+                  <p className="text-charcoal font-medium mb-1">No saved properties</p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Properties you save will appear here
+                  </p>
+                  <button
+                    onClick={() => router.push('/search')}
+                    className="text-sm text-crimson hover:underline"
+                  >
+                    Browse properties
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
+                  {savedProperties.slice(0, 4).map((property, i) => (
+                    <PropertyCard key={property.id} property={property} index={i} />
+                  ))}
+                </div>
               )}
             </div>
 
-            {savedProperties.length === 0 ? (
-              <div className="bg-white rounded-xl p-8 border border-border-subtle text-center">
-                <Heart size={40} className="mx-auto text-charcoal/20 mb-3" />
-                <p className="text-charcoal font-medium mb-1">No saved properties</p>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Properties you save will appear here
-                </p>
-                <button
-                  onClick={() => router.push('/search')}
-                  className="text-sm text-crimson hover:underline"
-                >
-                  Browse properties
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
-                {savedProperties.slice(0, 4).map((property, i) => (
-                  <PropertyCard key={property.id} property={property} index={i} />
-                ))}
-              </div>
-            )}
+            <div>
+              <button
+                onClick={() => setShowLeads(!showLeads)}
+                className="flex items-center justify-between w-full mb-4"
+              >
+                <h3 className="font-serif text-xl text-charcoal">Received Leads</h3>
+                <span className="text-sm text-crimson">{showLeads ? 'Hide' : `View (${leads.length})`}</span>
+              </button>
+
+              {showLeads && leads.length === 0 && (
+                <div className="bg-white rounded-xl p-8 border border-border-subtle text-center">
+                  <MessageSquare size={40} className="mx-auto text-charcoal/20 mb-3" />
+                  <p className="text-charcoal font-medium mb-1">No leads yet</p>
+                  <p className="text-sm text-muted-foreground">Inquiries from buyers will appear here</p>
+                </div>
+              )}
+
+              {showLeads && leads.length > 0 && (
+                <div className="space-y-3">
+                  {leads.map((lead) => (
+                    <div key={lead.id} className="bg-white rounded-xl p-4 border border-border-subtle">
+                      <div className="flex items-start gap-3 mb-2">
+                        {lead.property?.image && (
+                          <Image
+                            src={lead.property.image}
+                            alt={lead.property.title}
+                            width={40}
+                            height={40}
+                            className="w-10 h-10 rounded-lg object-cover shrink-0"
+                          />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-charcoal text-sm truncate">{lead.property?.title}</p>
+                          <p className="text-xs text-muted-foreground">{lead.property?.city} &middot; ${(lead.property?.price / 1000000).toFixed(1)}M</p>
+                        </div>
+                      </div>
+                      <div className="space-y-1 text-sm text-charcoal/80">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{lead.buyer?.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Mail size={12} />
+                          {lead.buyer?.email}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Phone size={12} />
+                          {lead.buyer?.phone}
+                        </div>
+                        {lead.message && (
+                          <p className="text-xs text-muted-foreground mt-1 italic">&ldquo;{lead.message}&rdquo;</p>
+                        )}
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                          <Calendar size={12} />
+                          {new Date(lead.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

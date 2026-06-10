@@ -16,10 +16,11 @@ model User {
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
   emailVerified DateTime?
-  accounts      Account[]
-  leads         Lead[]
-  properties    Property[]
-  sessions      Session[]
+  accounts        Account[]
+  leads           Lead[]
+  properties      Property[]
+  savedProperties SavedProperty[]
+  sessions        Session[]
 }
 
 model Property {
@@ -30,11 +31,13 @@ model Property {
   type        PropertyType
   listingFor  ListingFor
   bhk         Int?
+  baths       Int?
   area        Int?
   city        String
   locality    String
   address     String?
   images      String[]
+  amenities   String[]  @default([])
   furnished   Furnished?
   floor       Int?
   totalFloors Int?
@@ -45,8 +48,9 @@ model Property {
   sellerId    String
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
-  leads       Lead[]
-  seller      User         @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  leads           Lead[]
+  savedProperties SavedProperty[]
+  seller          User         @relation(fields: [sellerId], references: [id], onDelete: Cascade)
 }
 
 model Lead {
@@ -60,6 +64,17 @@ model Lead {
   createdAt  DateTime @default(now())
   buyer      User?    @relation(fields: [buyerId], references: [id])
   property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model SavedProperty {
+  id         String   @id @default(cuid())
+  userId     String
+  propertyId String
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, propertyId])
 }
 
 model Account {

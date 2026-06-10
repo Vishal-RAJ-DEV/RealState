@@ -27,6 +27,7 @@ export default function PropertyCard({ property, index = 0 }: PropertyCardProps)
   };
 
   const formatPricePerSqft = (price: number, sqft: number) => {
+    if (!sqft) return '';
     return `$${Math.round(price / sqft).toLocaleString()}/sqft`;
   };
 
@@ -41,13 +42,13 @@ export default function PropertyCard({ property, index = 0 }: PropertyCardProps)
       <Link href={`/property/${property.id}`} className="block">
         <div className="bg-white rounded-2xl overflow-hidden shadow-subtle hover:shadow-card transition-shadow duration-300">
           <div className="relative aspect-[4/3] overflow-hidden">
-            <Image
-              src={property.images[0]}
-              alt={property.title}
-              fill
-              className="object-cover group-hover:scale-105 transition-transform duration-500"
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            />
+              <Image
+                src={property.images[0] || '/images/placeholder.jpg'}
+                alt={property.title}
+                fill
+                className="object-cover group-hover:scale-105 transition-transform duration-500"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              />
             <div className="absolute top-3 left-3">
               <span
                 className={`px-3 py-1 text-xs font-semibold rounded ${

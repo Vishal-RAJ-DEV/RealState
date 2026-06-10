@@ -93,23 +93,24 @@ export async function PATCH(
     const json = await request.json();
     const validated = propertySchema.partial().parse(json);
 
+    // Build update data only from fields actually present in request body
+    const allowedFields = [
+      'title', 'description', 'price', 'type', 'listingFor',
+      'bhk', 'baths', 'area', 'city', 'locality', 'address',
+      'totalFloors', 'facing', 'age', 'furnished', 'floor',
+      'status', 'images', 'amenities',
+    ] as const;
+
+    const updateData: Record<string, unknown> = {};
+    for (const field of allowedFields) {
+      if (field in json) {
+        updateData[field] = (validated as any)[field] ?? null;
+      }
+    }
+
     const updatedProperty = await db.property.update({
       where: { id: params.id },
-      data: {
-        title: validated.title,
-        description: validated.description,
-        price: validated.price,
-        type: validated.type,
-        listingFor: validated.listingFor,
-        bhk: validated.bhk ?? null,
-        area: validated.area ?? null,
-        city: validated.city,
-        locality: validated.locality,
-        images: validated.images ?? [],
-        furnished: validated.furnished ?? null,
-        floor: validated.floor ?? null,
-        // sellerId remains unchanged
-      },
+      data: updateData,
       include: {
         seller: {
           select: {
