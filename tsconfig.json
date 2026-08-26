@@ -38,6 +38,7 @@
   "exclude": [
     "node_modules",
     "src2",
-    "src/main.tsx"
+    "src/main.tsx",
+    "prisma"
   ]
 }
