@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { signOut } from 'next-auth/react';
 import {
   Bell, Plus, Building2, Eye, Phone, MoreVertical,
   Heart, Trash2, MessageSquare, Mail, Calendar,
@@ -87,7 +88,7 @@ export default function DashboardPage() {
                 <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-crimson rounded-full border-2 border-cream" />
               </button>
               <button
-                onClick={logout}
+                onClick={() => { logout(); signOut({ callbackUrl: '/' }); }}
                 className="text-sm text-muted-foreground hover:text-crimson transition-colors"
               >
                 Logout

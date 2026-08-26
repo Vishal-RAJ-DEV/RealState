@@ -77,7 +77,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
+      if (trigger === "signIn" && user) {
+        if (user.email) {
+          const dbUser = await db.user.findUnique({
+            where: { email: user.email },
+            select: { id: true, phone: true },
+          });
+          if (dbUser) {
+            token.id = dbUser.id;
+            token.phone = dbUser.phone ?? undefined;
+          }
+        }
+      }
       if (user) {
         token.id = user.id!;
         token.phone = (user as any).phone;
