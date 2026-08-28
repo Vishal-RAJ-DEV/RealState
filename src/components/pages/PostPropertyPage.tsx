@@ -27,12 +27,15 @@ function getAmenityList(type: PropertyType) {
   }
 }
 
+const toNumber = (v: string) => (v.trim() === '' ? undefined : Number(v));
+
 export default function PostPropertyPage() {
   const router = useRouter();
   const { createProperty } = useApp();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const [propertyType, setPropertyType] = useState<PropertyType | ''>('');
   const [listingFor, setListingFor] = useState<'SALE' | 'RENT' | ''>('');
@@ -92,6 +95,8 @@ export default function PostPropertyPage() {
     securityDeposit: '',
     maintenanceCharge: '',
   });
+
+  const clearErrors = () => { setSubmitError(''); setFieldErrors({}); };
 
   const toggleAmenity = (amenity: string) => {
     setSelectedAmenities(prev =>
@@ -157,7 +162,7 @@ export default function PostPropertyPage() {
     const base = {
       title,
       description,
-      price: Number(price),
+      price: toNumber(price) as number,
       type: propertyType,
       listingFor,
       city,
@@ -172,12 +177,12 @@ export default function PostPropertyPage() {
         ...base,
         details: {
           plotType: plotForm.plotType,
-          area: Number(plotForm.area),
+          area: toNumber(plotForm.area) as number,
           areaUnit: plotForm.areaUnit,
-          length: plotForm.length ? Number(plotForm.length) : undefined,
-          width: plotForm.width ? Number(plotForm.width) : undefined,
+          length: toNumber(plotForm.length),
+          width: toNumber(plotForm.width),
           facing: plotForm.facing || undefined,
-          roadWidth: plotForm.roadWidth ? Number(plotForm.roadWidth) : undefined,
+          roadWidth: toNumber(plotForm.roadWidth),
           nearPlaces: plotForm.nearPlaces,
           boundaryWall: plotForm.boundaryWall,
           waterAvailable: plotForm.waterAvailable,
@@ -192,17 +197,17 @@ export default function PostPropertyPage() {
         details: {
           bedrooms: flatForm.bedrooms,
           bathrooms: flatForm.bathrooms,
-          carpetArea: flatForm.carpetArea ? Number(flatForm.carpetArea) : undefined,
-          builtUpArea: flatForm.builtUpArea ? Number(flatForm.builtUpArea) : undefined,
+          carpetArea: toNumber(flatForm.carpetArea),
+          builtUpArea: toNumber(flatForm.builtUpArea),
           areaUnit: flatForm.areaUnit || undefined,
-          floor: flatForm.floor ? Number(flatForm.floor) : undefined,
-          totalFloors: flatForm.totalFloors ? Number(flatForm.totalFloors) : undefined,
+          floor: toNumber(flatForm.floor),
+          totalFloors: toNumber(flatForm.totalFloors),
           furnished: flatForm.furnished || undefined,
           facing: flatForm.facing || undefined,
-          age: flatForm.age ? Number(flatForm.age) : undefined,
+          age: toNumber(flatForm.age),
           balconies: flatForm.balconies,
           parking: flatForm.parking,
-          roomSize: flatForm.roomSize ? JSON.parse(flatForm.roomSize) : undefined,
+          roomSize: flatForm.roomSize || undefined,
         },
       };
     }
@@ -210,22 +215,22 @@ export default function PostPropertyPage() {
     if (propertyType === 'PG_ROOM') {
       return {
         ...base,
-        price: Number(pgForm.monthlyRent),
+        price: toNumber(pgForm.monthlyRent) as number,
         details: {
-          roomSize: pgForm.roomSize ? Number(pgForm.roomSize) : undefined,
+          roomSize: toNumber(pgForm.roomSize),
           areaUnit: pgForm.areaUnit || undefined,
           sharingType: pgForm.sharingType,
-          totalBeds: pgForm.totalBeds ? Number(pgForm.totalBeds) : undefined,
-          availableBeds: pgForm.availableBeds ? Number(pgForm.availableBeds) : undefined,
+          totalBeds: toNumber(pgForm.totalBeds),
+          availableBeds: toNumber(pgForm.availableBeds),
           genderPreference: pgForm.genderPreference,
           attachedBathroom: pgForm.attachedBathroom,
           balcony: pgForm.balcony,
           furnished: pgForm.furnished,
           foodAvailable: pgForm.foodAvailable,
           foodType: pgForm.foodType || undefined,
-          monthlyRent: Number(pgForm.monthlyRent),
-          securityDeposit: pgForm.securityDeposit ? Number(pgForm.securityDeposit) : undefined,
-          maintenanceCharge: pgForm.maintenanceCharge ? Number(pgForm.maintenanceCharge) : undefined,
+          monthlyRent: toNumber(pgForm.monthlyRent) as number,
+          securityDeposit: toNumber(pgForm.securityDeposit),
+          maintenanceCharge: toNumber(pgForm.maintenanceCharge),
         },
       };
     }
@@ -236,22 +241,39 @@ export default function PostPropertyPage() {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     setSubmitError('');
+    setFieldErrors({});
     try {
       await createProperty(buildPayload());
       router.push('/dashboard');
     } catch (error: any) {
-      setSubmitError(error?.message || 'Failed to create property. Please try again.');
+      if (error?.fieldErrors && typeof error.fieldErrors === 'object') {
+        setFieldErrors(error.fieldErrors);
+        setSubmitError('Please fix the highlighted errors below.');
+      } else {
+        setSubmitError(error?.message || 'Failed to create property. Please try again.');
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const canProceedStep1 = propertyType && listingFor && title && price && city && locality;
+  const canProceedStep1 =
+    !!propertyType &&
+    !!listingFor &&
+    title.trim().length >= 5 &&
+    description.trim().length >= 10 &&
+    toNumber(price) !== undefined &&
+    (toNumber(price) as number) > 0 &&
+    city.trim().length > 0 &&
+    locality.trim().length > 0;
+
   const canProceedStep2 = propertyType === 'PLOT'
-    ? plotForm.area
+    ? (toNumber(plotForm.area) as number) > 0
     : propertyType === 'FLAT'
-      ? flatForm.bedrooms > 0 && flatForm.bathrooms > 0
-      : pgForm.sharingType && pgForm.monthlyRent;
+      ? flatForm.bedrooms >= 1 && flatForm.bathrooms >= 1
+      : pgForm.sharingType.trim().length > 0 &&
+        (toNumber(pgForm.monthlyRent) as number) > 0;
+
   const canSubmit = images.length > 0;
 
   const totalSteps = 3;
@@ -990,6 +1012,13 @@ export default function PostPropertyPage() {
           {submitError && (
             <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
               {submitError}
+              {Object.keys(fieldErrors).length > 0 && (
+                <ul className="mt-2 space-y-1 list-disc list-inside text-xs text-red-600">
+                  {Object.entries(fieldErrors).map(([field, msg]) => (
+                    <li key={field}><span className="font-medium">{field}:</span> {msg}</li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
         </div>
@@ -999,7 +1028,7 @@ export default function PostPropertyPage() {
         <div className="max-w-2xl mx-auto flex gap-3">
           {step > 1 && (
             <button
-              onClick={() => setStep(step - 1)}
+              onClick={() => { clearErrors(); setStep(step - 1); }}
               className="flex-1 py-3.5 border-2 border-charcoal text-charcoal rounded-xl font-medium hover:bg-charcoal/5 transition-colors"
             >
               Back
@@ -1007,7 +1036,7 @@ export default function PostPropertyPage() {
           )}
           {step < totalSteps ? (
             <button
-              onClick={() => setStep(step + 1)}
+              onClick={() => { clearErrors(); setStep(step + 1); }}
               disabled={step === 1 ? !canProceedStep1 : !canProceedStep2}
               className="flex-1 py-3.5 bg-charcoal text-cream rounded-xl font-medium hover:bg-charcoal/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >

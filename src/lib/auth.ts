@@ -77,29 +77,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return true;
     },
-    async jwt({ token, user, trigger, session }) {
-      if (trigger === "signIn" && user) {
-        if (user.email) {
-          const dbUser = await db.user.findUnique({
-            where: { email: user.email },
-            select: { id: true, phone: true },
-          });
-          if (dbUser) {
-            token.id = dbUser.id;
-            token.phone = dbUser.phone ?? undefined;
-          }
+    async jwt({ token, user, trigger }) {
+      if (trigger === "signIn" && user?.email) {
+        const dbUser = await db.user.findUnique({
+          where: { email: user.email },
+          select: { id: true, phone: true },
+        });
+        if (dbUser) {
+          token.id = dbUser.id;
+          token.phone = dbUser.phone ?? undefined;
         }
       }
-      if (user) {
+      if (user && !token.id) {
         token.id = user.id!;
-        token.phone = (user as any).phone;
+        token.phone = (user as any).phone ?? token.phone;
       }
       return token;
     },
     async session({ session, token }) {
-      if (token && session.user) {
-        session.user.id = token.id;
-        session.user.phone = token.phone as string | undefined;
+      if (session.user && token?.id) {
+        session.user.id = token.id as string;
+        session.user.phone = (token.phone as string | undefined) ?? session.user.phone;
       }
       return session;
     },

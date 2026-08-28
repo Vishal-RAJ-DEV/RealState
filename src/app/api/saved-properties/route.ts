@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/prisma";
+import { getCurrentDbUser } from "@/lib/current-user";
 
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const user = await getCurrentDbUser();
+    if (!user) {
       return NextResponse.json({ savedIds: [] });
     }
 
     const saved = await db.savedProperty.findMany({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       select: { propertyId: true },
     });
 
@@ -26,8 +27,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const user = await getCurrentDbUser();
+    if (!user) {
       return NextResponse.json(
         { error: "Authentication required to save properties" },
         { status: 401 }
@@ -35,29 +36,37 @@ export async function POST(request: Request) {
     }
 
     const { propertyId } = await request.json();
-    if (!propertyId) {
+    if (!propertyId || typeof propertyId !== "string") {
       return NextResponse.json(
         { error: "Property ID is required" },
         { status: 400 }
       );
     }
 
-    // Check if already saved
+    const property = await db.property.findUnique({
+      where: { id: propertyId },
+      select: { id: true },
+    });
+    if (!property) {
+      return NextResponse.json(
+        { error: "Property not found" },
+        { status: 404 }
+      );
+    }
+
     const existing = await db.savedProperty.findUnique({
-      where: { userId_propertyId: { userId: session.user.id, propertyId } },
+      where: { userId_propertyId: { userId: user.id, propertyId } },
     });
 
     if (existing) {
-      // Unsave
       await db.savedProperty.delete({
         where: { id: existing.id },
       });
       return NextResponse.json({ saved: false });
     }
 
-    // Save
     await db.savedProperty.create({
-      data: { userId: session.user.id, propertyId },
+      data: { userId: user.id, propertyId },
     });
 
     return NextResponse.json({ saved: true }, { status: 201 });

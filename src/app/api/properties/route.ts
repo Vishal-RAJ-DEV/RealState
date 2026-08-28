@@ -156,6 +156,10 @@ export async function POST(request: Request) {
     const json = await request.json();
     const validated = propertySchema.parse(json);
 
+    if (validated.type === "PG_ROOM") {
+      validated.price = validated.details.monthlyRent;
+    }
+
     const property = await db.$transaction(async (tx) => {
       const created = await tx.property.create({
         data: {
@@ -244,7 +248,7 @@ export async function POST(request: Request) {
   } catch (error: any) {
     if (error.name === "ZodError") {
       return NextResponse.json(
-        { error: "Invalid input data", details: error.errors },
+        { error: "Invalid input data", details: error.flatten().fieldErrors },
         { status: 400 }
       );
     }

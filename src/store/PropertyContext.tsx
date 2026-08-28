@@ -232,6 +232,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
       if (!res.ok) {
         const error = await res.json();
+        if (error.details && typeof error.details === 'object') {
+          const err = new Error(error.error || "Validation failed");
+          (err as any).fieldErrors = error.details;
+          throw err;
+        }
         throw new Error(error.error || "Failed to create property");
       }
       const data = await res.json();
