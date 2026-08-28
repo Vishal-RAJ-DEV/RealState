@@ -25,6 +25,7 @@ export default function DashboardPage() {
     total: 0,
     active: 0,
     sold: 0,
+    rented: 0,
     totalLeads: 0,
     totalViews: 0,
   });
@@ -74,6 +75,12 @@ export default function DashboardPage() {
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
+  };
+
+  const formatPrice = (price: number) => {
+    if (price >= 1000000) return `$${(price / 1000000).toFixed(1)}M`;
+    if (price >= 1000) return `$${(price / 1000).toFixed(0)}K`;
+    return `$${price}`;
   };
 
   return (
@@ -183,7 +190,12 @@ export default function DashboardPage() {
                         </h4>
                       </Link>
                       <p className="text-xs text-muted-foreground">
-                        ${(property.price / 1000000).toFixed(1)}M &middot; {property.location}
+                        {formatPrice(property.price)} &middot; {property.location}
+                        {property.type === 'PG_ROOM' && ' /mo'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {property.type === 'PG_ROOM' ? 'PG Room' : property.type === 'PLOT' ? 'Plot' : 'Flat'}
+                        {' '}&middot; {property.listingType}
                       </p>
                     </div>
                     <span className={`px-2.5 py-1 rounded-full text-xs font-medium shrink-0 ${
@@ -231,7 +243,7 @@ export default function DashboardPage() {
                                       const newStats = { ...prev };
                                       if (s === 'Active') { newStats.active++; if (property.status === 'Sold') newStats.sold--; else newStats.total--; }
                                       if (s === 'Sold') { newStats.sold++; newStats.active--; }
-                                      if (s === 'Rented') { newStats.active--; }
+                                      if (s === 'Rented') { newStats.active--; newStats.rented++; }
                                       return newStats;
                                     });
                                   } catch (err) {
@@ -335,7 +347,7 @@ export default function DashboardPage() {
                         )}
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-charcoal text-sm truncate">{lead.property?.title}</p>
-                          <p className="text-xs text-muted-foreground">{lead.property?.city} &middot; ${(lead.property?.price / 1000000).toFixed(1)}M</p>
+                          <p className="text-xs text-muted-foreground">{lead.property?.city} &middot; {formatPrice(lead.property?.price || 0)}</p>
                         </div>
                       </div>
                       <div className="space-y-1 text-sm text-charcoal/80">

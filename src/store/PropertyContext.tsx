@@ -96,7 +96,6 @@ interface AppContextValue {
   addProperty: (property: Property) => void;
   setUser: (user: User | null) => void;
   logout: () => void;
-  getFilteredProperties: () => Property[];
   getSavedProperties: () => Property[];
   getUserListings: () => Property[];
   fetchProperties: (filters?: FilterState) => Promise<void>;
@@ -112,7 +111,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const { data: session } = useSession();
 
-  // Load saved property IDs from API when user logs in
   useEffect(() => {
     if (session?.user && !state.currentUser) {
       dispatch({
@@ -126,7 +124,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           memberSince: new Date().getFullYear().toString(),
         },
       });
-      // Load saved properties from server
       fetch('/api/saved-properties')
         .then(res => res.json())
         .then(data => {
@@ -154,9 +151,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const toggleSave = useCallback((id: string) => {
-    // Optimistic UI update
     dispatch({ type: 'TOGGLE_SAVE', payload: id });
-    // Persist to server if logged in (fire and forget)
     if (state.currentUser) {
       fetch('/api/saved-properties', {
         method: 'POST',
@@ -182,21 +177,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'SET_LOADING', payload: true });
     try {
       const params = new URLSearchParams();
-      if (filters?.city) params.set("city", filters.city);
-      if (filters?.propertyType) params.set("type", filters.propertyType);
-      if (filters?.listingType) {
-        const listingFor = filters.listingType === 'Buy' ? 'SALE' : 'RENT';
-        params.set("listingFor", listingFor);
+      const f = filters || state.filters;
+      if (f.city) params.set("city", f.city);
+      if (f.propertyType) params.set("type", f.propertyType);
+      if (f.listingType) {
+        if (f.listingType === 'Buy') params.set("listingFor", 'SALE');
+        else if (f.listingType === 'Rent') params.set("listingFor", 'RENT');
+        else if (f.listingType === 'PG') params.set("listingFor", 'RENT');
       }
-      if (filters?.minPrice !== undefined) params.set("minPrice", String(filters.minPrice));
-      if (filters?.maxPrice !== undefined) params.set("maxPrice", String(filters.maxPrice));
-      if (filters?.beds !== undefined && filters?.beds > 0) params.set("bhk", String(filters.beds));
-      if (filters?.searchQuery) params.set("search", filters.searchQuery);
+      if (f.minPrice > 0) params.set("minPrice", String(f.minPrice));
+      if (f.maxPrice < 20000000) params.set("maxPrice", String(f.maxPrice));
+      if (f.beds > 0) params.set("bhk", String(f.beds));
+      if (f.searchQuery) params.set("search", f.searchQuery);
+
+      // If PG filter is selected, set type
+      if (f.listingType === 'PG') {
+        params.set("type", "PG_ROOM");
+      }
 
       const res = await fetch(`/api/properties?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch properties");
       const data = await res.json();
-      
+
       dispatch({ type: 'SET_PROPERTIES', payload: data.properties });
       dispatch({ type: 'SET_PAGINATION', payload: data.pagination });
     } catch (error) {
@@ -204,7 +206,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, []);
+  }, [state.filters]);
 
   const fetchPropertyById = useCallback(async (id: string) => {
     dispatch({ type: 'SET_LOADING', payload: true });
@@ -233,7 +235,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         throw new Error(error.error || "Failed to create property");
       }
       const data = await res.json();
-      // Add to local state immediately
       dispatch({ type: 'ADD_PROPERTY', payload: data });
       return data;
     } catch (error) {
@@ -250,15 +251,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
       if (!res.ok) throw new Error("Failed to update property");
       const updated = await res.json();
-      // Update in local state
-      dispatch({ type: 'SET_PROPERTIES', payload: 
+      dispatch({ type: 'SET_PROPERTIES', payload:
         state.properties.map(p => p.id === id ? updated : p)
       });
       return updated;
     } catch (error) {
       throw error;
     }
-  }, []);
+  }, [state.properties]);
 
   const deleteProperty = useCallback(async (id: string) => {
     try {
@@ -266,37 +266,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Failed to delete property");
-      // Remove from local state
-      dispatch({ type: 'SET_PROPERTIES', payload: 
+      dispatch({ type: 'SET_PROPERTIES', payload:
         state.properties.filter(p => p.id !== id)
       });
       return true;
     } catch (error) {
       throw error;
     }
-  }, []);
-
-  const getFilteredProperties = useCallback(() => {
-    const { city, listingType, propertyType, minPrice, maxPrice, beds, searchQuery } = state.filters;
-    return state.properties.filter((p) => {
-      if (city && !p.city.toLowerCase().includes(city.toLowerCase())) return false;
-      if (listingType === 'Buy' && p.listingType !== 'Sale') return false;
-      if (listingType === 'Rent' && p.listingType !== 'Rent') return false;
-      if (propertyType && p.type !== propertyType) return false;
-      if (p.price < minPrice || p.price > maxPrice) return false;
-      if (beds > 0 && p.beds < beds) return false;
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        const matches =
-          p.title.toLowerCase().includes(q) ||
-          p.location.toLowerCase().includes(q) ||
-          p.city.toLowerCase().includes(q) ||
-          p.type.toLowerCase().includes(q);
-        if (!matches) return false;
-      }
-      return true;
-    });
-  }, [state.properties, state.filters]);
+  }, [state.properties]);
 
   const getSavedProperties = useCallback(() => {
     return state.properties.filter((p) => state.savedProperties.includes(p.id));
@@ -307,7 +284,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return state.properties.filter((p) => p.owner.name === state.currentUser?.name);
   }, [state.properties, state.currentUser]);
 
-  // Fetch initial properties on mount
   useEffect(() => {
     fetchProperties();
   }, [fetchProperties]);
@@ -321,7 +297,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addProperty,
     setUser,
     logout,
-    getFilteredProperties,
     getSavedProperties,
     getUserListings,
     fetchProperties,

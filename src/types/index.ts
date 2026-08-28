@@ -3,11 +3,19 @@ import type {
   ListingFor,
   Prisma,
   PropertyType,
+  PlotType,
+  SharingType,
+  GenderPreference,
+  Status,
 } from "@prisma/client";
 
-export type PropertyWithSeller = Prisma.PropertyGetPayload<{
+export type PropertyWithDetails = Prisma.PropertyGetPayload<{
   include: {
-    seller: true;
+    seller: { select: { id: true; name: true; phone: true; image: true; createdAt: true } };
+    _count: { select: { leads: true } };
+    plotDetails: true;
+    flatDetails: true;
+    pgDetails: true;
   };
 }>;
 
@@ -25,42 +33,92 @@ export type SearchFilters = {
   listingFor?: ListingFor;
   minPrice?: number;
   maxPrice?: number;
-  bhk?: number;
   furnished?: Furnished;
   sort?: string;
+  bhk?: number;
+  plotType?: PlotType;
+  sharingType?: SharingType;
+  genderPreference?: GenderPreference;
 };
+
+export interface PropertyDetailPlot {
+  plotType: PlotType;
+  area: number;
+  areaUnit: string;
+  length?: number | null;
+  width?: number | null;
+  facing?: string | null;
+  roadWidth?: number | null;
+  nearPlaces: string[];
+  boundaryWall: boolean;
+  waterAvailable: boolean;
+  electricityAvailable: boolean;
+}
+
+export interface PropertyDetailFlat {
+  bedrooms: number;
+  bathrooms: number;
+  carpetArea?: number | null;
+  builtUpArea?: number | null;
+  areaUnit?: string | null;
+  floor?: number | null;
+  totalFloors?: number | null;
+  furnished?: Furnished | null;
+  facing?: string | null;
+  age?: number | null;
+  balconies?: number | null;
+  parking: boolean;
+  roomSize?: unknown;
+}
+
+export interface PropertyDetailPG {
+  roomSize?: number | null;
+  areaUnit?: string | null;
+  sharingType: SharingType;
+  totalBeds?: number | null;
+  availableBeds?: number | null;
+  genderPreference: GenderPreference;
+  attachedBathroom: boolean;
+  balcony: boolean;
+  furnished: boolean;
+  foodAvailable: boolean;
+  foodType?: string | null;
+  monthlyRent: number;
+  securityDeposit?: number | null;
+  maintenanceCharge?: number | null;
+}
 
 export interface Property {
   id: string;
   title: string;
-  location: string;
-  address: string;
+  description: string;
+  type: PropertyType;
+  listingType: 'Sale' | 'Rent';
   price: number;
-  pricePerSqft: number;
+  location: string;
+  city: string;
+  locality: string;
+  address: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  images: string[];
+  amenities: string[];
+  status: Status;
+  views: number;
+  leads: number;
   beds: number;
   baths: number;
   sqft: number;
-  type: 'Villa' | 'Apartment' | 'Loft' | 'Penthouse' | 'House' | 'Commercial';
-  listingType: 'Sale' | 'Rent';
-  floor: string;
-  furnished: string;
-  facing: string;
-  age: string;
-  images: string[];
-  description: string;
-  amenities: string[];
-  verified: boolean;
+  pricePerSqft: number;
   owner: {
+    id: string;
     name: string;
     phone: string;
     memberSince: string;
     avatar: string;
   };
   postedDate: string;
-  status: 'Active' | 'Sold' | 'Rented';
-  city: string;
-  views?: number;
-  leads?: number;
+  details?: PropertyDetailPlot | PropertyDetailFlat | PropertyDetailPG | null;
 }
 
 export interface User {
@@ -74,25 +132,10 @@ export interface User {
 
 export interface FilterState {
   city: string;
-  listingType: 'Buy' | 'Rent' | 'Commercial';
+  listingType: 'Buy' | 'Rent' | 'PG';
   propertyType: string;
   minPrice: number;
   maxPrice: number;
   beds: number;
   searchQuery: string;
-}
-
-export interface PropertyFormData {
-  title: string;
-  listingType: 'Sale' | 'Rent';
-  propertyType: string;
-  beds: number;
-  price: string;
-  city: string;
-  locality: string;
-  images: string[];
-  description: string;
-  sqft: string;
-  baths: number;
-  amenities: string[];
 }

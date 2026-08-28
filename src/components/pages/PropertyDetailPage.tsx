@@ -5,16 +5,155 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ArrowLeft, Share2, Heart, MapPin, Check, Phone, MessageSquare,
-  Bed, Bath, Maximize, Layers, Sofa, Compass, Calendar,
-  ChevronLeft, ChevronRight, Shield, X, Send, Loader2,
+  ArrowLeft, Share2, Heart, MapPin, Phone, MessageSquare,
+  ChevronLeft, ChevronRight, X, Send, Loader2,
+  Bed, Bath, Maximize, Map, Ruler, Droplets, Zap, Wifi,
+  Users, ShieldCheck, UtensilsCrossed, Wallet,
 } from 'lucide-react';
 import { useApp } from '@/store/PropertyContext';
-import type { Property } from '@/types';
+import type { Property, PropertyDetailPlot, PropertyDetailFlat, PropertyDetailPG } from '@/types';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 
 interface PropertyDetailPageProps {
   params: { id: string };
+}
+
+function formatPrice(price: number) {
+  if (price >= 1000000) return `$${(price / 1000000).toFixed(2)}M`;
+  if (price >= 1000) return `$${(price / 1000).toFixed(0)}K`;
+  return `$${price}`;
+}
+
+function PlotDetailsSection({ details }: { details: PropertyDetailPlot }) {
+  return (
+    <div className="space-y-4">
+      <h3 className="font-serif text-xl text-charcoal">Plot Details</h3>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <SpecCard icon={Map} label="Plot Type" value={details.plotType} />
+        <SpecCard icon={Maximize} label="Area" value={`${details.area} ${details.areaUnit}`} />
+        {details.facing && <SpecCard icon={MapPin} label="Facing" value={details.facing} />}
+        {details.length && details.width && (
+          <SpecCard icon={Ruler} label="Dimensions" value={`${details.length} x ${details.width} ft`} />
+        )}
+        {details.roadWidth && (
+          <SpecCard icon={Map} label="Road Width" value={`${details.roadWidth} ft`} />
+        )}
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <InfoBadge icon={Droplets} label="Water" available={details.waterAvailable} />
+        <InfoBadge icon={Zap} label="Electricity" available={details.electricityAvailable} />
+        <InfoBadge icon={ShieldCheck} label="Boundary Wall" available={details.boundaryWall} />
+      </div>
+      {details.nearPlaces.length > 0 && (
+        <div>
+          <h4 className="text-sm font-medium text-charcoal mb-2">Nearby Places</h4>
+          <div className="flex flex-wrap gap-2">
+            {details.nearPlaces.map((place, i) => (
+              <span key={i} className="px-3 py-1.5 bg-charcoal/5 text-charcoal text-xs rounded-full">{place}</span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FlatDetailsSection({ details }: { details: PropertyDetailFlat }) {
+  const furnishedLabel = details.furnished === 'FULLY' ? 'Fully Furnished'
+    : details.furnished === 'SEMI' ? 'Semi-Furnished'
+    : details.furnished === 'UNFURNISHED' ? 'Unfurnished' : 'N/A';
+
+  return (
+    <div className="space-y-4">
+      <h3 className="font-serif text-xl text-charcoal">Flat Details</h3>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <SpecCard icon={Bed} label="Bedrooms" value={`${details.bedrooms} BHK`} />
+        <SpecCard icon={Bath} label="Bathrooms" value={`${details.bathrooms}`} />
+        {details.carpetArea && (
+          <SpecCard icon={Maximize} label="Carpet Area" value={`${details.carpetArea} sqft`} />
+        )}
+        {details.builtUpArea && (
+          <SpecCard icon={Maximize} label="Built-up Area" value={`${details.builtUpArea} sqft`} />
+        )}
+        {details.floor != null && (
+          <SpecCard icon={Map} label="Floor" value={`Floor ${details.floor}${details.totalFloors ? ` of ${details.totalFloors}` : ''}`} />
+        )}
+        <SpecCard icon={MapPin} label="Facing" value={details.facing || 'N/A'} />
+        {details.age != null && (
+          <SpecCard icon={ShieldCheck} label="Age" value={details.age === 0 ? 'New' : `${details.age} years`} />
+        )}
+        {details.balconies != null && (
+          <SpecCard icon={Map} label="Balconies" value={`${details.balconies}`} />
+        )}
+        <SpecCard icon={ShieldCheck} label="Furnished" value={furnishedLabel} />
+        <SpecCard icon={ShieldCheck} label="Parking" value={details.parking ? 'Available' : 'Not Available'} />
+      </div>
+    </div>
+  );
+}
+
+function PGDetailsSection({ details }: { details: PropertyDetailPG }) {
+  const sharingLabel: Record<string, string> = {
+    SINGLE: 'Single Occupancy',
+    DOUBLE: 'Double Sharing',
+    TRIPLE: 'Triple Sharing',
+    FOUR: '4-Four Sharing',
+    FIVE_PLUS: '5+ Sharing',
+  };
+
+  return (
+    <div className="space-y-4">
+      <h3 className="font-serif text-xl text-charcoal">PG Room Details</h3>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {details.roomSize && (
+          <SpecCard icon={Maximize} label="Room Size" value={`${details.roomSize} ${details.areaUnit || 'sqft'}`} />
+        )}
+        <SpecCard icon={Users} label="Sharing" value={sharingLabel[details.sharingType] || details.sharingType} />
+        {details.totalBeds && (
+          <SpecCard icon={Bed} label="Total Beds" value={`${details.totalBeds}`} />
+        )}
+        {details.availableBeds != null && (
+          <SpecCard icon={Bed} label="Available Beds" value={`${details.availableBeds}`} />
+        )}
+        <SpecCard icon={Users} label="Gender" value={details.genderPreference === 'ANY' ? 'Unisex' : details.genderPreference} />
+        <SpecCard icon={Wallet} label="Monthly Rent" value={`$${details.monthlyRent.toLocaleString()}`} />
+        {details.securityDeposit != null && (
+          <SpecCard icon={Wallet} label="Security Deposit" value={`$${details.securityDeposit.toLocaleString()}`} />
+        )}
+        {details.maintenanceCharge != null && (
+          <SpecCard icon={Wallet} label="Maintenance" value={`$${details.maintenanceCharge.toLocaleString()}/mo`} />
+        )}
+      </div>
+      <div className="grid grid-cols-4 gap-3">
+        <InfoBadge icon={ShieldCheck} label="Attached Bath" available={details.attachedBathroom} />
+        <InfoBadge icon={Map} label="Balcony" available={details.balcony} />
+        <InfoBadge icon={ShieldCheck} label="Furnished" available={details.furnished} />
+        <InfoBadge icon={UtensilsCrossed} label="Food" available={details.foodAvailable} />
+      </div>
+      {details.foodAvailable && details.foodType && (
+        <p className="text-sm text-muted-foreground">Food Type: {details.foodType.replace(/_/g, ' ')}</p>
+      )}
+    </div>
+  );
+}
+
+function SpecCard({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
+  return (
+    <div className="bg-white rounded-xl p-4 border border-border-subtle">
+      <Icon size={18} className="text-crimson mb-2" />
+      <div className="font-semibold text-charcoal text-sm">{value}</div>
+      <div className="text-xs text-muted-foreground">{label}</div>
+    </div>
+  );
+}
+
+function InfoBadge({ icon: Icon, label, available }: { icon: any; label: string; available: boolean }) {
+  return (
+    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${available ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+      <Icon size={14} />
+      <span>{label}</span>
+    </div>
+  );
 }
 
 export default function PropertyDetailPage({ params }: PropertyDetailPageProps) {
@@ -94,23 +233,9 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
     );
   }
 
-  const formatPrice = (price: number) => {
-    if (price >= 1000000) return `$${(price / 1000000).toFixed(2)}M`;
-    return `$${(price / 1000).toFixed(0)}K`;
-  };
-
-  const specs = [
-    { icon: Bed, label: 'Bedrooms', value: `${property.beds} BHK` },
-    { icon: Bath, label: 'Bathrooms', value: `${property.baths} Baths` },
-    { icon: Maximize, label: 'Area', value: `${property.sqft.toLocaleString()} sqft` },
-    { icon: Layers, label: 'Floor', value: property.floor },
-    { icon: Sofa, label: 'Furnished', value: property.furnished },
-    { icon: Compass, label: 'Facing', value: property.facing },
-    { icon: Calendar, label: 'Age', value: property.age },
-    { icon: Shield, label: 'Verified', value: property.verified ? 'Yes' : 'No' },
-  ];
-
+  const details = property.details as PropertyDetailPlot | PropertyDetailFlat | PropertyDetailPG | null;
   const displayedAmenities = showAllAmenities ? property.amenities : property.amenities.slice(0, 6);
+  const priceLabel = property.type === 'PG_ROOM' ? '/month' : '';
 
   return (
     <main className="min-h-screen bg-cream">
@@ -164,12 +289,9 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
           }`}>
             FOR {property.listingType.toUpperCase()}
           </span>
-          {property.verified && (
-            <span className="px-3 py-1.5 text-xs font-medium rounded bg-white/90 text-charcoal flex items-center gap-1">
-              <Check size={12} className="text-green-600" />
-              Verified
-            </span>
-          )}
+          <span className="px-3 py-1.5 text-xs font-medium rounded bg-white/90 text-charcoal">
+            {property.type.replace('_', ' ')}
+          </span>
         </div>
 
         {property.images.length > 1 && (
@@ -214,11 +336,13 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
             >
               <div className="flex items-baseline justify-between mb-2">
                 <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl text-charcoal">
-                  {formatPrice(property.price)}
+                  {formatPrice(property.price)}{priceLabel}
                 </h1>
-                <span className="text-sm text-muted-foreground">
-                  {property.sqft ? `$${Math.round(property.price / property.sqft).toLocaleString()}/sqft` : ''}
-                </span>
+                {property.sqft > 0 && property.type !== 'PG_ROOM' && (
+                  <span className="text-sm text-muted-foreground">
+                    ${Math.round(property.price / property.sqft).toLocaleString()}/sqft
+                  </span>
+                )}
               </div>
               <h2 className="font-serif text-xl sm:text-2xl text-charcoal/90 mb-3">
                 {property.title}
@@ -233,15 +357,17 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8"
+              className="mb-8"
             >
-              {specs.map((spec) => (
-                <div key={spec.label} className="bg-white rounded-xl p-4 border border-border-subtle">
-                  <spec.icon size={20} className="text-crimson mb-2" />
-                  <div className="font-semibold text-charcoal text-sm">{spec.value}</div>
-                  <div className="text-xs text-muted-foreground">{spec.label}</div>
-                </div>
-              ))}
+              {property.type === 'PLOT' && details && 'plotType' in details && (
+                <PlotDetailsSection details={details as PropertyDetailPlot} />
+              )}
+              {property.type === 'FLAT' && details && 'bedrooms' in details && (
+                <FlatDetailsSection details={details as PropertyDetailFlat} />
+              )}
+              {property.type === 'PG_ROOM' && details && 'sharingType' in details && (
+                <PGDetailsSection details={details as PropertyDetailPG} />
+              )}
             </motion.div>
 
             <motion.div
@@ -254,32 +380,34 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
               <p className="text-muted-foreground leading-relaxed">{property.description}</p>
             </motion.div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              className="mb-8"
-            >
-              <h3 className="font-serif text-xl text-charcoal mb-3">Amenities</h3>
-              <div className="flex flex-wrap gap-2">
-                {displayedAmenities.map((amenity) => (
-                  <span
-                    key={amenity}
-                    className="px-4 py-2 bg-white border border-border-subtle rounded-full text-sm text-charcoal"
+            {property.amenities.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+                className="mb-8"
+              >
+                <h3 className="font-serif text-xl text-charcoal mb-3">Amenities</h3>
+                <div className="flex flex-wrap gap-2">
+                  {displayedAmenities.map((amenity) => (
+                    <span
+                      key={amenity}
+                      className="px-4 py-2 bg-white border border-border-subtle rounded-full text-sm text-charcoal"
+                    >
+                      {amenity}
+                    </span>
+                  ))}
+                </div>
+                {property.amenities.length > 6 && (
+                  <button
+                    onClick={() => setShowAllAmenities(!showAllAmenities)}
+                    className="mt-3 text-sm text-crimson hover:underline"
                   >
-                    {amenity}
-                  </span>
-                ))}
-              </div>
-              {property.amenities.length > 6 && (
-                <button
-                  onClick={() => setShowAllAmenities(!showAllAmenities)}
-                  className="mt-3 text-sm text-crimson hover:underline"
-                >
-                  {showAllAmenities ? 'Show less' : `Show all ${property.amenities.length} amenities`}
-                </button>
-              )}
-            </motion.div>
+                    {showAllAmenities ? 'Show less' : `Show all ${property.amenities.length} amenities`}
+                  </button>
+                )}
+              </motion.div>
+            )}
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -321,7 +449,7 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
               >
                 <div className="mb-6">
                   <p className="text-sm text-muted-foreground mb-1">Price</p>
-                  <p className="font-serif text-3xl text-charcoal">{formatPrice(property.price)}</p>
+                  <p className="font-serif text-3xl text-charcoal">{formatPrice(property.price)}{priceLabel}</p>
                 </div>
 
                 <div className="space-y-3 mb-6">
@@ -381,7 +509,6 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
         </div>
       </div>
 
-      {/* Contact Form Modal */}
       <AnimatePresence>
         {showContactForm && (
           <motion.div

@@ -14,7 +14,7 @@ const ArchitecturalHeroCanvas = dynamic(
 
 export default function HeroSection() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'Buy' | 'Rent' | 'Commercial'>('Buy');
+  const [activeTab, setActiveTab] = useState<'Buy' | 'Rent' | 'PG'>('Buy');
   const router = useRouter();
   const { setFilter } = useApp();
 
@@ -49,7 +49,7 @@ export default function HeroSection() {
           className="w-full max-w-3xl"
         >
           <div className="flex justify-center gap-2 mb-4">
-            {(['Buy', 'Rent', 'Commercial'] as const).map((tab) => (
+            {(['Buy', 'Rent', 'PG'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -59,7 +59,7 @@ export default function HeroSection() {
                     : 'bg-white/10 text-cream/70 hover:bg-white/20'
                 }`}
               >
-                {tab}
+                {tab === 'PG' ? 'PG' : tab}
               </button>
             ))}
           </div>

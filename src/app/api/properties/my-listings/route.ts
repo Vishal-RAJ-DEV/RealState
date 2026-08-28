@@ -28,11 +28,13 @@ export async function GET(request: Request) {
         _count: {
           select: { leads: true },
         },
+        plotDetails: true,
+        flatDetails: true,
+        pgDetails: true,
       },
       orderBy: { createdAt: "desc" },
     });
 
-    // Calculate stats
     const stats = {
       total: properties.length,
       active: properties.filter(p => p.status === "ACTIVE").length,

@@ -7,15 +7,15 @@ datasource db {
 }
 
 model User {
-  id            String     @id @default(cuid())
-  name          String
-  email         String     @unique
-  password      String?
-  phone         String?
-  image         String?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  emailVerified DateTime?
+  id              String          @id @default(cuid())
+  name            String
+  email           String          @unique
+  password        String?
+  phone           String?
+  image           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  emailVerified   DateTime?
   accounts        Account[]
   leads           Lead[]
   properties      Property[]
@@ -24,33 +24,86 @@ model User {
 }
 
 model Property {
-  id          String       @id @default(cuid())
-  title       String
-  description String
-  price       Int
-  type        PropertyType
-  listingFor  ListingFor
-  bhk         Int?
-  baths       Int?
-  area        Int?
-  city        String
-  locality    String
-  address     String?
-  images      String[]
-  amenities   String[]  @default([])
-  furnished   Furnished?
+  id              String          @id @default(cuid())
+  title           String
+  description     String
+  price           Float
+  type            PropertyType
+  listingFor      ListingFor
+  city            String
+  locality        String
+  address         String?
+  images          String[]
+  status          Status          @default(ACTIVE)
+  views           Int             @default(0)
+  sellerId        String
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  amenities       String[]        @default([])
+  latitude        Float?
+  longitude       Float?
+  flatDetails     FlatDetails?
+  leads           Lead[]
+  pgDetails       PGDetails?
+  plotDetails     PlotDetails?
+  seller          User            @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  savedProperties SavedProperty[]
+}
+
+model PlotDetails {
+  id                   String   @id @default(cuid())
+  propertyId           String   @unique
+  plotType             PlotType
+  area                 Float
+  areaUnit             String
+  length               Float?
+  width                Float?
+  facing               String?
+  roadWidth            Float?
+  nearPlaces           String[]
+  boundaryWall         Boolean  @default(false)
+  waterAvailable       Boolean  @default(false)
+  electricityAvailable Boolean  @default(false)
+  property             Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model FlatDetails {
+  id          String     @id @default(cuid())
+  propertyId  String     @unique
+  bedrooms    Int
+  bathrooms   Int
+  carpetArea  Float?
+  builtUpArea Float?
+  areaUnit    String?
   floor       Int?
   totalFloors Int?
+  furnished   Furnished?
   facing      String?
   age         Int?
-  status      Status       @default(ACTIVE)
-  views       Int          @default(0)
-  sellerId    String
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  leads           Lead[]
-  savedProperties SavedProperty[]
-  seller          User         @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  balconies   Int?
+  parking     Boolean    @default(false)
+  roomSize    Json?
+  property    Property   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model PGDetails {
+  id                String           @id @default(cuid())
+  propertyId        String           @unique
+  roomSize          Float?
+  areaUnit          String?
+  sharingType       SharingType
+  totalBeds         Int?
+  availableBeds     Int?
+  genderPreference  GenderPreference
+  attachedBathroom  Boolean          @default(false)
+  balcony           Boolean          @default(false)
+  furnished         Boolean          @default(false)
+  foodAvailable     Boolean          @default(false)
+  foodType          String?
+  monthlyRent       Float
+  securityDeposit   Float?
+  maintenanceCharge Float?
+  property          Property         @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 }
 
 model Lead {
@@ -71,8 +124,8 @@ model SavedProperty {
   userId     String
   propertyId String
   createdAt  DateTime @default(now())
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, propertyId])
 }
@@ -113,9 +166,8 @@ model VerificationToken {
 
 enum PropertyType {
   FLAT
-  VILLA
   PLOT
-  COMMERCIAL
+  PG_ROOM
 }
 
 enum ListingFor {
@@ -133,4 +185,25 @@ enum Status {
   ACTIVE
   SOLD
   RENTED
+}
+
+enum PlotType {
+  RESIDENTIAL
+  COMMERCIAL
+  AGRICULTURAL
+  INDUSTRIAL
+}
+
+enum SharingType {
+  SINGLE
+  DOUBLE
+  TRIPLE
+  FOUR
+  FIVE_PLUS
+}
+
+enum GenderPreference {
+  MALE
+  FEMALE
+  ANY
 }

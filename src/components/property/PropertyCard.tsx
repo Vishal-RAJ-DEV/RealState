@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { Heart, MapPin, Bed, Bath, Maximize } from 'lucide-react';
+import { Heart, MapPin, Bed, Bath, Maximize, Users } from 'lucide-react';
 import type { Property } from '@/types';
 import { useApp } from '@/store/PropertyContext';
 
@@ -26,10 +26,7 @@ export default function PropertyCard({ property, index = 0 }: PropertyCardProps)
     return `$${price}`;
   };
 
-  const formatPricePerSqft = (price: number, sqft: number) => {
-    if (!sqft) return '';
-    return `$${Math.round(price / sqft).toLocaleString()}/sqft`;
-  };
+  const priceSuffix = property.type === 'PG_ROOM' ? '/mo' : '';
 
   return (
     <motion.div
@@ -49,7 +46,7 @@ export default function PropertyCard({ property, index = 0 }: PropertyCardProps)
                 className="object-cover group-hover:scale-105 transition-transform duration-500"
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               />
-            <div className="absolute top-3 left-3">
+            <div className="absolute top-3 left-3 flex gap-2">
               <span
                 className={`px-3 py-1 text-xs font-semibold rounded ${
                   property.listingType === 'Sale'
@@ -59,17 +56,10 @@ export default function PropertyCard({ property, index = 0 }: PropertyCardProps)
               >
                 FOR {property.listingType.toUpperCase()}
               </span>
+              <span className="px-3 py-1 text-xs font-medium rounded bg-white/90 text-charcoal">
+                {property.type === 'PG_ROOM' ? 'PG' : property.type.charAt(0) + property.type.slice(1).toLowerCase()}
+              </span>
             </div>
-            {property.verified && (
-              <div className="absolute top-3 left-24">
-                <span className="px-3 py-1 text-xs font-medium rounded bg-white/90 text-charcoal flex items-center gap-1">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-green-600">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  Verified
-                </span>
-              </div>
-            )}
             <button
               onClick={(e) => {
                 e.preventDefault();
@@ -98,27 +88,47 @@ export default function PropertyCard({ property, index = 0 }: PropertyCardProps)
             </div>
 
             <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-              <div className="flex items-center gap-1">
-                <Bed size={14} />
-                <span>{property.beds} Beds</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Bath size={14} />
-                <span>{property.baths} Baths</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Maximize size={14} />
-                <span>{property.sqft.toLocaleString()} sqft</span>
-              </div>
+              {property.type === 'FLAT' && (
+                <>
+                  <div className="flex items-center gap-1">
+                    <Bed size={14} />
+                    <span>{property.beds} Beds</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Bath size={14} />
+                    <span>{property.baths} Baths</span>
+                  </div>
+                </>
+              )}
+              {property.type === 'PLOT' && (
+                <div className="flex items-center gap-1">
+                  <Maximize size={14} />
+                  <span>{property.sqft.toLocaleString()} sqft</span>
+                </div>
+              )}
+              {property.type === 'PG_ROOM' && (
+                <>
+                  <div className="flex items-center gap-1">
+                    <Users size={14} />
+                    <span>{property.beds} Beds</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Maximize size={14} />
+                    <span>{property.sqft > 0 ? `${property.sqft} sqft` : 'N/A'}</span>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="flex items-baseline justify-between pt-3 border-t border-border-subtle">
               <span className="text-xl font-bold text-charcoal font-sans">
-                {formatPrice(property.price)}
+                {formatPrice(property.price)}{priceSuffix}
               </span>
-              <span className="text-sm text-muted-foreground">
-                {formatPricePerSqft(property.price, property.sqft)}
-              </span>
+              {property.sqft > 0 && property.type !== 'PG_ROOM' && (
+                <span className="text-sm text-muted-foreground">
+                  ${Math.round(property.price / property.sqft).toLocaleString()}/sqft
+                </span>
+              )}
             </div>
           </div>
         </div>

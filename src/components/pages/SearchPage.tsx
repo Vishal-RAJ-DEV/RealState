@@ -20,7 +20,7 @@ function SearchContent() {
     const type = searchParams?.get('type');
     if (type === 'Buy') setFilter({ listingType: 'Buy' });
     if (type === 'Rent') setFilter({ listingType: 'Rent' });
-    if (type === 'Commercial') setFilter({ listingType: 'Commercial' });
+    if (type === 'PG') setFilter({ listingType: 'PG' });
   }, [searchParams, setFilter]);
 
   useEffect(() => {
@@ -32,31 +32,8 @@ function SearchContent() {
     return () => clearTimeout(timeout);
   }, [state.filters, fetchProperties]);
 
-  const filteredProperties = useMemo(() => {
-    const { city, listingType, propertyType, minPrice, maxPrice, beds, searchQuery } = state.filters;
-    return state.properties.filter((p) => {
-      if (city && !p.city.toLowerCase().includes(city.toLowerCase())) return false;
-      if (listingType === 'Buy' && p.listingType !== 'Sale') return false;
-      if (listingType === 'Rent' && p.listingType !== 'Rent') return false;
-      if (listingType === 'Commercial' && p.type !== 'Commercial') return false;
-      if (propertyType && p.type !== propertyType) return false;
-      if (p.price < minPrice || p.price > maxPrice) return false;
-      if (beds > 0 && p.beds < beds) return false;
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        const matches =
-          p.title.toLowerCase().includes(q) ||
-          p.location.toLowerCase().includes(q) ||
-          p.city.toLowerCase().includes(q) ||
-          p.type.toLowerCase().includes(q);
-        if (!matches) return false;
-      }
-      return true;
-    });
-  }, [state.properties, state.filters]);
-
   const sortedProperties = useMemo(() => {
-    const sorted = [...filteredProperties];
+    const sorted = [...state.properties];
     switch (sortBy) {
       case 'price-low':
         sorted.sort((a, b) => a.price - b.price);
@@ -71,7 +48,7 @@ function SearchContent() {
         break;
     }
     return sorted;
-  }, [filteredProperties, sortBy]);
+  }, [state.properties, sortBy]);
 
   const activeFilterCount = [
     state.filters.city,
@@ -102,7 +79,7 @@ function SearchContent() {
             </div>
 
             <div className="flex bg-white border border-border-subtle rounded-lg overflow-hidden shrink-0">
-              {(['Buy', 'Rent', 'Commercial'] as const).map((type) => (
+              {(['Buy', 'Rent', 'PG'] as const).map((type) => (
                 <button
                   key={type}
                   onClick={() => setFilter({ listingType: type })}
@@ -112,7 +89,7 @@ function SearchContent() {
                       : 'text-charcoal hover:bg-charcoal/5'
                   }`}
                 >
-                  {type}
+                  {type === 'PG' ? 'PG' : type}
                 </button>
               ))}
             </div>
@@ -133,14 +110,14 @@ function SearchContent() {
 
             <div className="relative shrink-0">
               <select
-                value={state.filters.beds || ''}
-                onChange={(e) => setFilter({ beds: Number(e.target.value) || 0 })}
+                value={state.filters.propertyType}
+                onChange={(e) => setFilter({ propertyType: e.target.value })}
                 className="appearance-none bg-white border border-border-subtle rounded-lg px-4 py-2 pr-8 text-sm cursor-pointer"
               >
-                <option value="">All Beds</option>
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <option key={n} value={n}>{n}+ Beds</option>
-                ))}
+                <option value="">All Types</option>
+                <option value="PLOT">Plot</option>
+                <option value="FLAT">Flat</option>
+                <option value="PG_ROOM">PG Room</option>
               </select>
               <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-charcoal/40" />
             </div>
@@ -235,7 +212,7 @@ function SearchContent() {
       <div className="w-full px-4 sm:px-6 lg:px-10 py-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="font-serif text-2xl sm:text-3xl text-charcoal">
-            {state.filters.listingType === 'Buy' ? 'Properties for Sale' : state.filters.listingType === 'Rent' ? 'Properties for Rent' : 'Commercial Spaces'}
+            {state.filters.listingType === 'Buy' ? 'Properties for Sale' : state.filters.listingType === 'Rent' ? 'Properties for Rent' : 'PG Rooms'}
           </h1>
           <span className="text-sm text-muted-foreground">
             {sortedProperties.length} {sortedProperties.length === 1 ? 'property' : 'properties'} found
