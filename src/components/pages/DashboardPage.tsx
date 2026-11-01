@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { signOut } from 'next-auth/react';
 import {
-  Bell, Plus, Building2, Eye, Phone, MoreVertical,
+  ArrowLeft, Bell, Plus, Building2, Eye, Phone, MoreVertical,
   Heart, Trash2, MessageSquare, Mail, Calendar,
 } from 'lucide-react';
 import { useApp } from '@/store/PropertyContext';
@@ -88,11 +88,32 @@ export default function DashboardPage() {
       <div className="fixed top-0 left-0 right-0 z-50 bg-cream/95 backdrop-blur-md border-b border-border-subtle">
         <div className="w-full px-4 sm:px-6 lg:px-10">
           <div className="flex items-center justify-between h-16">
-            <h1 className="font-serif text-xl text-charcoal">My Dashboard</h1>
-            <div className="flex items-center gap-3">
-              <button className="w-9 h-9 rounded-full bg-charcoal/5 flex items-center justify-center hover:bg-charcoal/10 transition-colors relative">
+            <div className="flex min-w-0 items-center gap-3 sm:gap-5">
+              <Link
+                href="/"
+                aria-label="PropFinder home"
+                className="shrink-0 font-serif text-xl font-semibold tracking-tight text-charcoal transition-colors hover:text-crimson"
+              >
+                PropFinder
+              </Link>
+              <span aria-hidden="true" className="hidden h-6 w-px bg-border-subtle sm:block" />
+              <h1 className="truncate font-serif text-lg text-charcoal sm:text-xl">My Dashboard</h1>
+            </div>
+            <div className="flex shrink-0 items-center gap-3">
+              <Link
+                href="/"
+                className="hidden items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-crimson sm:inline-flex"
+              >
+                <ArrowLeft size={16} aria-hidden="true" />
+                Back to Website
+              </Link>
+              <button
+                type="button"
+                aria-label="Notifications"
+                className="relative flex h-9 w-9 items-center justify-center rounded-full bg-charcoal/5 transition-colors hover:bg-charcoal/10"
+              >
                 <Bell size={18} />
-                <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-crimson rounded-full border-2 border-cream" />
+                <span aria-hidden="true" className="absolute right-0 top-0 h-2.5 w-2.5 rounded-full border-2 border-cream bg-crimson" />
               </button>
               <button
                 onClick={() => { logout(); signOut({ callbackUrl: '/' }); }}
